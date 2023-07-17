@@ -29,9 +29,16 @@ int os_led_strip_init(os_led_strip_t *strip, led_strip_type_t type, int bus, int
     strip->out_buffer_size = BYTES_PER_COLOR * RGB_BYTES * numpixels;
     strip->out_buffer = (uint8_t*)malloc(sizeof(uint8_t) * strip->out_buffer_size);
     i2s_config.dma_buf_len = strip->out_buffer_size;
+    strip->numpixel = numpixels;
 
-    i2s_driver_install((i2s_port_t)bus, &i2s_config, 0, NULL);
-    i2s_set_pin((i2s_port_t)bus, &pin_config);
+    esp_err_t err = i2s_driver_install((i2s_port_t)bus, &i2s_config, 0, NULL);
+    if (err != ESP_OK){
+        return esp_to_os(err);
+    }
+    err = i2s_set_pin((i2s_port_t)bus, &pin_config);
+    if (err != ESP_OK){
+        return esp_to_os(err);
+    }
     return OS_RET_OK;
 }
 
@@ -39,6 +46,10 @@ int os_led_strip_set(os_led_strip_t *strip, uint32_t pixel, uint8_t r, uint8_t g
     
     if(strip == NULL){
         return OS_RET_NULL_PTR;
+    }
+
+    if(pixel >= strip->numpixel){
+        return OS_RET_INVALID_PARAM;
     }
 
     uint32_t index = pixel * BYTES_PER_COLOR * RGB_BYTES;
@@ -70,8 +81,15 @@ int os_led_strip_show(os_led_strip_t *strip){
     }
 
     size_t bytes_written;
-    i2s_write((i2s_port_t)strip->bus, strip->out_buffer, strip->out_buffer_size, &bytes_written, portMAX_DELAY);
-    i2s_write((i2s_port_t)strip->bus, strip->off_buffer, sizeof(strip->off_buffer), &bytes_written, portMAX_DELAY);
+    esp_err_t err = i2s_write((i2s_port_t)strip->bus, strip->out_buffer, strip->out_buffer_size, &bytes_written, portMAX_DELAY);
+    if (err != ESP_OK){
+        return esp_to_os(err);
+    }
+    
+    err = i2s_write((i2s_port_t)strip->bus, strip->off_buffer, sizeof(strip->off_buffer), &bytes_written, portMAX_DELAY);
+    if (err != ESP_OK){
+        return esp_to_os(err);
+    }
     os_thread_sleep_ms(10);
 
     i2s_zero_dma_buffer((i2s_port_t)strip->bus);

@@ -23,10 +23,15 @@ typedef struct os_led_strip{
     led_strip_type_t type;
     int gpio;
 
+    uint32_t numpixel;
     size_t out_buffer_size;
     uint8_t *out_buffer; 
     uint8_t off_buffer[ZERO_BUFFER_SIZE];
 
 }os_led_strip_t;
 
+/**
+ * @brief Remaps the esp errores to OS errors
+*/
+int esp_to_os(esp_err_t err);
 #endif
