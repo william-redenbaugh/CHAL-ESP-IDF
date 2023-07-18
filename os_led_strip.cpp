@@ -14,7 +14,6 @@ i2s_config_t i2s_config = {
 
 static const uint16_t bitpatterns[4] = {0x88, 0x8e, 0xe8, 0xee};
 
-
 int os_led_strip_init(os_led_strip_t *strip, led_strip_type_t type, int bus, int gpio, uint32_t numpixels){
 
     if(strip == NULL){
@@ -92,6 +91,9 @@ int os_led_strip_show(os_led_strip_t *strip){
     }
     os_thread_sleep_ms(10);
 
-    i2s_zero_dma_buffer((i2s_port_t)strip->bus);
+    err = i2s_zero_dma_buffer((i2s_port_t)strip->bus);
+    if (err != ESP_OK){
+        return esp_to_os(err);
+    }
     return OS_RET_OK;
 }

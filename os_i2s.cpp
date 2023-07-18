@@ -59,7 +59,7 @@ int i2s_host_init(os_i2s_host_t *host, int bus, os_i2s_channels_t chan, os_i2s_s
     return OS_RET_OK;
 }
 
-int i2s_host_Read(os_i2s_host_t *host, void *ptr, size_t *len) {
+int i2s_host_read(os_i2s_host_t *host, void *ptr, size_t *len) {
     size_t bytes_read = 0;
     i2s_read(host->port, ptr, *len, &bytes_read, portMAX_DELAY);
     *len = bytes_read;
