@@ -30,6 +30,7 @@ typedef struct os_led_strip
     size_t out_buffer_size;
     uint8_t *out_buffer;
     uint8_t off_buffer[ZERO_BUFFER_SIZE];
+    void *mutex;
 
 } os_led_strip_t;
 
