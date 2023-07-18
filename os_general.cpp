@@ -33,6 +33,5 @@ int esp_to_os(esp_err_t err){
         break;
         default:
             return OS_RET_INT_ERR;
-
     }    
 }
