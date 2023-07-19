@@ -38,4 +38,6 @@ typedef struct os_led_strip
  * @brief Remaps the esp errores to OS errors
  */
 int esp_to_os(esp_err_t err);
+
+#define HAL_ASSERT(e) assert(e)
 #endif
