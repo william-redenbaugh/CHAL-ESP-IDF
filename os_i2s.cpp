@@ -1,11 +1,10 @@
 #include "platform_cshal.h"
 #include "global_includes.h"
 
-int i2s_host_init(os_i2s_host_t *host, int bus, os_i2s_channels_t chan, os_i2s_sample_bits_t bits, uint32_t sample_rate)
+static inline i2s_bits_per_sample_t map_bits_sample(os_i2s_sample_bits_t bits)
 {
-
-    // Configure I2S peripheral
     i2s_bits_per_sample_t bits_sample;
+
     switch (bits)
     {
     case I2S_SAMPLE_32BITS:
@@ -22,6 +21,12 @@ int i2s_host_init(os_i2s_host_t *host, int bus, os_i2s_channels_t chan, os_i2s_s
         break;
     }
 
+    return bits_sample;
+}
+
+static inline i2s_channel_fmt_t map_channels(os_i2s_channels_t chan)
+{
+    // Configure channels
     i2s_channel_fmt_t chn_fmt;
 
     switch (chan)
@@ -42,6 +47,18 @@ int i2s_host_init(os_i2s_host_t *host, int bus, os_i2s_channels_t chan, os_i2s_s
         chn_fmt = I2S_CHANNEL_FMT_ONLY_LEFT;
         break;
     }
+
+    return chn_fmt;
+}
+
+int i2s_host_init(os_i2s_host_t *host, int bus, os_i2s_channels_t chan, os_i2s_sample_bits_t bits, uint32_t sample_rate)
+{
+
+    // Configure I2S peripheral
+    i2s_bits_per_sample_t bits_sample = map_bits_sample(bits);
+
+    // Configure channels
+    i2s_channel_fmt_t chn_fmt = map_channels(chan);
 
     i2s_config_t i2s_config = {
         .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
