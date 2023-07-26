@@ -4,8 +4,9 @@
 i2s_config_t i2s_config = {
     .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
     .sample_rate = SAMPLE_RATE,
-    .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
-    .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
+    .bits_per_sample = (i2s_bits_per_sample_t)16,
+    .channel_format = (i2s_channel_fmt_t)I2S_CHANNEL_FMT_RIGHT_LEFT,
+    .communication_format = (i2s_comm_format_t)(I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_MSB),
     .intr_alloc_flags = 0,
     .dma_buf_count = 4,
     .use_apll = false,
@@ -40,11 +41,13 @@ int os_led_strip_init(os_led_strip_t *strip, led_strip_type_t type, int bus, int
     {
         return esp_to_os(err);
     }
+
     err = i2s_set_pin((i2s_port_t)bus, &pin_config);
     if (err != ESP_OK)
     {
         return esp_to_os(err);
     }
+
     return OS_RET_OK;
 }
 

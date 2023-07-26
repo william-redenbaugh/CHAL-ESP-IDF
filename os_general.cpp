@@ -38,6 +38,7 @@ int esp_to_os(esp_err_t err)
     }
 }
 
-int os_assert(int ret)
+void os_assert(int ret)
 {
+    assert(ret);
 }

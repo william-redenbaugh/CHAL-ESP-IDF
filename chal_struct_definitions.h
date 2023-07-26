@@ -2,6 +2,7 @@
 #define _IDF_CHAL_STRUCT_DEFINITIONS_H
 
 #include <driver/i2s.h>
+#include "stdlib.h"
 
 typedef struct os_i2s
 {
@@ -41,5 +42,8 @@ typedef struct os_led_strip
  */
 int esp_to_os(esp_err_t err);
 
-#define HAL_ASSERT(e) assert(e)
+/**
+ * @brief Couple different assertion points
+ */
+#define OS_ASSERT(e) assert(e)
 #endif
