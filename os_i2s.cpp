@@ -79,6 +79,7 @@ int i2s_host_init(os_i2s_host_t *host, int bus, os_i2s_pinmap_t pinmap, os_i2s_c
         .fixed_mclk = 0};
     // I REPEAT, DON'T REMOVE .communication_format = I2S_COMM_FORMAT_I2S
 
+    host->cfg = i2s_config;
     host->port = (i2s_port_t)bus;
     host->chip_select_gpio = pinmap.serial_data_cs;
     host->pin_config.bck_io_num = pinmap.serial_clk;
@@ -86,9 +87,16 @@ int i2s_host_init(os_i2s_host_t *host, int bus, os_i2s_pinmap_t pinmap, os_i2s_c
     host->pin_config.data_out_num = I2S_PIN_NO_CHANGE;
     host->pin_config.data_in_num = pinmap.serial_data;
 
-    i2s_driver_install(host->port, &i2s_config, 0, NULL);
-    i2s_set_pin(host->port, &host->pin_config);
-
+    esp_err_t err = i2s_driver_install(host->port, &host->cfg, 0, NULL);
+    if (err != ESP_OK)
+    {
+        return esp_to_os(err);
+    }
+    err = i2s_set_pin(host->port, &host->pin_config);
+    if (err != ESP_OK)
+    {
+        return esp_to_os(err);
+    }
     pinMode(host->chip_select_gpio, OUTPUT);
     digitalWrite(host->chip_select_gpio, LOW);
 
@@ -98,7 +106,7 @@ int i2s_host_init(os_i2s_host_t *host, int bus, os_i2s_pinmap_t pinmap, os_i2s_c
 int i2s_host_read(os_i2s_host_t *host, void *ptr, size_t *len)
 {
     size_t bytes_read = 0;
-    i2s_read(host->port, ptr, *len, &bytes_read, portMAX_DELAY);
+    esp_err_t err = i2s_read(host->port, ptr, *len, &bytes_read, portMAX_DELAY);
     *len = bytes_read;
-    return OS_RET_OK;
+    return esp_to_os(err);
 }
