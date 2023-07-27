@@ -32,6 +32,11 @@ int os_led_strip_init(os_led_strip_t *strip, led_strip_type_t type, int bus, int
 
     strip->out_buffer_size = BITS_PER_LED_CMD * sizeof(rmt_item32_t) * numpixels;
     strip->out_buffer =  (rmt_item32_t*)malloc(BITS_PER_LED_CMD *sizeof(rmt_item32_t) * numpixels);
+    
+    if(strip->out_buffer == NULL){
+        return OS_RET_LOW_MEM_ERROR;
+    }
+
     strip->numpixel = numpixels;
     strip->bus = (rmt_channel_t)bus;
     strip->gpio = gpio;
@@ -39,8 +44,17 @@ int os_led_strip_init(os_led_strip_t *strip, led_strip_type_t type, int bus, int
 
     // Allocate memory and initialize mutex
     strip->mutex = malloc(sizeof(os_mut_t));
-    os_mut_init((os_mut_t *)strip->mutex);
-    os_mut_entry((os_mut_t*)strip->mutex, -1);
+    int ret = os_mut_init((os_mut_t *)strip->mutex);
+    if(ret != OS_RET_OK)
+    {
+        return ret;
+    }
+    
+    ret = os_mut_entry((os_mut_t*)strip->mutex, -1);
+    if(ret != OS_RET_OK)
+    {
+        return ret;
+    }
 
     rmt_config_t config = {
         .rmt_mode = RMT_MODE_TX,
@@ -56,11 +70,19 @@ int os_led_strip_init(os_led_strip_t *strip, led_strip_type_t type, int bus, int
         },
     };
 
-    ESP_RETURN_ON_ERROR(rmt_config(&config), TAG, "Failed to configure RMT");
-    ESP_RETURN_ON_ERROR(rmt_driver_install(config.channel, 0, 0), TAG, "Failed to install RMT driver");
-    
-    os_mut_exit((os_mut_t*)strip->mutex);
-    return OS_RET_OK;
+    ret = esp_to_os(rmt_config(&config));
+    if(ret != OS_RET_OK)
+    {
+        return ret;
+    }
+
+    esp_to_os(rmt_driver_install(config.channel, 0, 0));
+    if(ret != OS_RET_OK)
+    {
+        return ret;
+    }
+
+    return os_mut_exit((os_mut_t*)strip->mutex);
 }
 
 int os_led_strip_set(os_led_strip_t *strip, uint32_t pixel, uint8_t r, uint8_t g, uint8_t b) {
