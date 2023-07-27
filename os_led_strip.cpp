@@ -1,18 +1,19 @@
 #include "global_includes.h"
-#include <driver/i2s.h>
+#include "driver/rmt.h"
+#include "esp_err.h"
+#include "esp_check.h"
 
-static i2s_config_t i2s_config = {
-    .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
-        .sample_rate = SAMPLE_RATE,
-        .bits_per_sample = I2S_BITS_PER_SAMPLE_32BIT,
-        .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
-        .communication_format = I2S_COMM_FORMAT_I2S,
-        .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
-        .dma_buf_count = 4,
-        .dma_buf_len = 4096,
-        .use_apll = false,
-        .tx_desc_auto_clear = false,
-        .fixed_mclk = 0};
+#define BITS_PER_LED_CMD	24
+
+#define LED_BUFFER_ITEMS	(BITS_PER_LED_CMD)
+
+// These values are determined by measuring pulse timing with logic analyzer and adjusting to match datasheet. 
+#define T0H	16  // 0 bit high time
+#define T1H	34  // 1 bit high time
+#define T0L	32  // low time for either bit
+#define T1L	18
+
+static const char *TAG = "NeoPixel WS2812 Driver";
 
 static const uint16_t bitpatterns[4] = {0x88, 0x8e, 0xe8, 0xee};
 
@@ -29,31 +30,41 @@ int os_led_strip_init(os_led_strip_t *strip, led_strip_type_t type, int bus, int
                                    .data_out_num = gpio,
                                    .data_in_num = -1};
 
-    strip->out_buffer_size = BYTES_PER_COLOR * RGB_BYTES * numpixels;
-    //strip->out_buffer = (uint8_t *)malloc(sizeof(uint8_t) * strip->out_buffer_size);
-    //i2s_config.dma_buf_len = strip->out_buffer_size;
+    strip->out_buffer_size = BITS_PER_LED_CMD * sizeof(rmt_item32_t) * numpixels;
+    strip->out_buffer =  (rmt_item32_t*)malloc(BITS_PER_LED_CMD *sizeof(rmt_item32_t) * numpixels);
     strip->numpixel = numpixels;
+    strip->bus = (rmt_channel_t)bus;
+    strip->gpio = gpio;
+    strip->type = type;
 
     // Allocate memory and initialize mutex
     strip->mutex = malloc(sizeof(os_mut_t));
     os_mut_init((os_mut_t *)strip->mutex);
-    //esp_err_t err = 0;
-    esp_err_t err = i2s_driver_install((i2s_port_t)1, &i2s_config, 0, NULL);
-    if (err != ESP_OK)
-    {
-        return esp_to_os(err);
-    }
+    os_mut_entry((os_mut_t*)strip->mutex, -1);
 
-    //err = i2s_set_pin((i2s_port_t)bus, &pin_config);
-    if (err != ESP_OK)
-    {
-        return esp_to_os(err);
-    }
+    rmt_config_t config = {
+        .rmt_mode = RMT_MODE_TX,
+        .channel = (rmt_channel_t)bus,
+        .gpio_num = (gpio_num_t)(gpio),
+        .clk_div = 2,
+        .mem_block_num = (uint8_t)3,
+        .tx_config = {
+            .idle_level = (rmt_idle_level_t)0,
+            .carrier_en = false, 
+            .loop_en = false, 
+            .idle_output_en = true, 
+        },
+    };
 
+    ESP_RETURN_ON_ERROR(rmt_config(&config), TAG, "Failed to configure RMT");
+    ESP_RETURN_ON_ERROR(rmt_driver_install(config.channel, 0, 0), TAG, "Failed to install RMT driver");
+    
+    os_mut_exit((os_mut_t*)strip->mutex);
     return OS_RET_OK;
 }
 
 int os_led_strip_set(os_led_strip_t *strip, uint32_t pixel, uint8_t r, uint8_t g, uint8_t b) {
+    const  uint8_t mask = 1 << (8 -1);
 
     if (strip == NULL)
     {
@@ -65,31 +76,33 @@ int os_led_strip_set(os_led_strip_t *strip, uint32_t pixel, uint8_t r, uint8_t g
         return OS_RET_INVALID_PARAM;
     }
 
-    uint32_t index = pixel * BYTES_PER_COLOR * RGB_BYTES;
-
+    int pos = pixel * BITS_PER_LED_CMD;
     int ret = os_mut_entry_wait_indefinite((os_mut_t *)strip->mutex);
     if (ret != OS_RET_OK)
     {
         return ret;
     }
-    
-    // Green
-    strip->out_buffer[index] = bitpatterns[g >> 6 & 0x03];
-    strip->out_buffer[index + 1] = bitpatterns[g >> 4 & 0x03];
-    strip->out_buffer[index + 2] = bitpatterns[g >> 2 & 0x03];
-    strip->out_buffer[index + 3] = bitpatterns[g & 0x03];
 
-    // Red bitwise manipulation
-    strip->out_buffer[index + 4] = bitpatterns[r >> 6 & 0x03];
-    strip->out_buffer[index + 5] = bitpatterns[r >> 4 & 0x03];
-    strip->out_buffer[index + 6] = bitpatterns[r >> 2 & 0x03];
-    strip->out_buffer[index + 7] = bitpatterns[r & 0x03];
+    for(int n = 0; n < 8; n++){
+        uint8_t bit_is_set = r & mask;
+        strip->out_buffer[pos + n] = bit_is_set ? 
+                        (rmt_item32_t){{{T1H, 1, T1L, 0}}} :
+                        (rmt_item32_t){{{T0H, 1, T0L, 0}}};
+    }
 
-    // Blue bitwise manipulation
-    strip->out_buffer[index + 8] = bitpatterns[b >> 6 & 0x03];
-    strip->out_buffer[index + 9] = bitpatterns[b >> 4 & 0x03];
-    strip->out_buffer[index + 10] = bitpatterns[b >> 2 & 0x03];
-    strip->out_buffer[index + 11] = bitpatterns[b & 0x03];
+    for(int n = 0; n < 8; n++){
+        uint8_t bit_is_set = g & mask;
+        strip->out_buffer[pos + n + 8] = bit_is_set ? 
+                        (rmt_item32_t){{{T1H, 1, T1L, 0}}} :
+                        (rmt_item32_t){{{T0H, 1, T0L, 0}}};
+    }
+
+    for(int n = 0; n < 8; n++){
+        uint8_t bit_is_set = b & mask;
+        strip->out_buffer[pos + n + 16] = bit_is_set ? 
+                        (rmt_item32_t){{{T1H, 1, T1L, 0}}} :
+                        (rmt_item32_t){{{T0H, 1, T0L, 0}}};
+    }
     
     ret = os_mut_exit((os_mut_t *)strip->mutex);
     return ret;
@@ -110,23 +123,20 @@ int os_led_strip_show(os_led_strip_t *strip)
     {
         return ret;
     }
-    esp_err_t err = i2s_write((i2s_port_t)strip->bus, strip->out_buffer, strip->out_buffer_size, &bytes_written, portMAX_DELAY);
-    if (err != ESP_OK)
+    ret = esp_to_os(rmt_write_items(strip->bus, strip->out_buffer, strip->out_buffer_size, false));
+    if (ret != OS_RET_OK)
     {
-        return esp_to_os(err);
+        return ret;
     }
-
-    err = i2s_write((i2s_port_t)strip->bus, strip->off_buffer, sizeof(strip->off_buffer), &bytes_written, portMAX_DELAY);
-    if (err != ESP_OK)
+    ret = esp_to_os(rmt_wait_tx_done(strip->bus, portMAX_DELAY));
+    if (ret != OS_RET_OK)
     {
-        return esp_to_os(err);
+        return ret;
     }
-    os_thread_sleep_ms(10);
-
-    err = i2s_zero_dma_buffer((i2s_port_t)strip->bus);
-    if (err != ESP_OK)
+    ret = os_mut_exit((os_mut_t*)strip->mutex);
+    if (ret != OS_RET_OK)
     {
-        return esp_to_os(err);
+        return ret;
     }
     return OS_RET_OK;
 }

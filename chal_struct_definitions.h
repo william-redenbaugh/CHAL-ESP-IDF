@@ -2,6 +2,7 @@
 #define _IDF_CHAL_STRUCT_DEFINITIONS_H
 
 #include <driver/i2s.h>
+#include "driver/rmt.h"
 #include "stdlib.h"
 
 typedef struct os_i2s
@@ -25,13 +26,14 @@ typedef enum
 
 typedef struct os_led_strip
 {
-    int bus;
+    rmt_channel_t bus;
+    rmt_config_t config;
     led_strip_type_t type;
     int gpio;
 
     uint32_t numpixel;
     size_t out_buffer_size;
-    uint8_t *out_buffer;
+    rmt_item32_t *out_buffer;
     uint8_t off_buffer[ZERO_BUFFER_SIZE];
     void *mutex;
 
