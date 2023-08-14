@@ -19,6 +19,8 @@
 #define SPP_SERVER_NAME "SPP_SERVER"
 #define BT_DEVICE_NAME DEVICE_NAME
 
+#define RX_BUFFER_SIZE 4096
+
 static const esp_spp_mode_t esp_spp_mode = ESP_SPP_MODE_CB;
 static const bool esp_spp_enable_l2cap_ertm = true;
 
@@ -31,7 +33,7 @@ static const esp_spp_role_t role_slave = ESP_SPP_ROLE_SLAVE;
 static int handle = -1;
 
 // Queue holding all UART data.
-static safe_circular_queue_t serial_queue;
+static safe_fifo_t serial_queue;
 
 static char *bda2str(uint8_t *bda, char *str, size_t size)
 {
@@ -114,6 +116,12 @@ static void esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *pa
 
 static void bt_spp_recv_cb(uint8_t *data, size_t len)
 {
+    safe_fifo_enqueue(&serial_queue, len, data);
+}
+
+int hal_bluetooth_serial_receive(uint8_t *data, size_t len)
+{
+    return safe_fifo_dequeue(&serial_queue, len, data);
 }
 
 int hal_bluetooth_serial_send(const uint8_t *data, size_t len)
@@ -244,6 +252,13 @@ hal_bt_serial_err_t hal_bluetooth_serial_init(void)
     if ((ret = esp_bt_gap_register_callback(esp_bt_gap_cb)) != ESP_OK)
     {
         print("%s gap register failed: %s", __func__, esp_err_to_name(ret));
+        return HAL_BT_SERIAL_ERROR;
+    }
+
+    int n = safe_fifo_init(&serial_queue, RX_BUFFER_SIZE, sizeof(uint8_t));
+
+    if (n != OS_RET_OK)
+    {
         return HAL_BT_SERIAL_ERROR;
     }
 
