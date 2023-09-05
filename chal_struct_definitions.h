@@ -47,5 +47,5 @@ int esp_to_os(esp_err_t err);
 /**
  * @brief Couple different assertion points
  */
-#define OS_ASSERT(e) assert(e)
+// #define OS_ASSERT(e) void(e)
 #endif
