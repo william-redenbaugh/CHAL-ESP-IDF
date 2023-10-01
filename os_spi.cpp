@@ -1,86 +1,52 @@
 #include "global_includes.h"
 #include "driver/spi_master.h"
-
-typedef struct _os_spi_t
-{
-    os_spi_t *spi;
-    spi_device_interface_config_t if_cfg;
-    spi_bus_config_t bus_cfg;
-    spi_host_device_t host;
-    spi_device_handle_t handle;
-    int dma_chan;
-    uint8_t *tx_buff;
-    uint8_t *rx_buff;
-} _os_spi_t;
-
-#define SPI_TRANS_MAX_SIZE (3084 * sizeof(uint8_t))
+#include <esp_heap_caps.h>
 
 /**
- * @brief our SPI interfaces initialized here
+ * @brief Internal SPI initialization structures for the esp32 platform
  */
-os_spi_t os_spi2 =
-    {
-        .fd = 2};
-_os_spi_t int_os_spi2{
-    .spi = &os_spi2,
-    .if_cfg = {
-        .command_bits = 0, // 0-16
-        .address_bits = 0, // 0-64
-        .dummy_bits = 0,
-        .mode = SPI_MODE0,
-        .duty_cycle_pos = 128, // default: 128
-        .cs_ena_pretrans = 0,  // only for half-duplex
-        .cs_ena_posttrans = 0,
-        .clock_speed_hz = SPI_MASTER_FREQ_8M,
-        .input_delay_ns = 0,
-        .spics_io_num = 15, // HSPI
-        .flags = 0,
-        .queue_size = 3,
-        .pre_cb = NULL,
-        .post_cb = NULL,
-    },
+typedef struct _os_spi_t
+{
+    spi_bus_config_t bus_cfg;
+    spi_host_device_t host;
+    spi_dma_chan_t dma_chan;
+} _os_spi_t;
+
+#define SPI_TRANS_MAX_SIZE (1024 * sizeof(uint16_t))
+
+/**
+ * @brief SPI2 and SPI3 configuration, setting based off default GPIOs
+ */
+_os_spi_t int_os_spi2 = {
     .bus_cfg = {
-        .mosi_io_num = 23,       // HSPI
-        .miso_io_num = 19,       // HSPI
-        .sclk_io_num = 18,       // HSPI
-        .max_transfer_sz = 4092, // default: 4092 if DMA enabled, SOC_SPI_MAXIMUM_BUFFER_SIZE if DMA disabled
+        .mosi_io_num = 35, // HSPI
+
+        .miso_io_num = 37, // HSPI
+        .sclk_io_num = 36, // HSPI
+        .quadwp_io_num = -1,
+        .quadhd_io_num = -1,
+        .max_transfer_sz = 4096,
+
         .flags = SPICOMMON_BUSFLAG_MASTER,
     },
     .host = SPI2_HOST,
-    .dma_chan = 1
-
-};
-
-os_spi_t os_spi3 = {
-    .fd = 3};
+    .dma_chan = SPI_DMA_CH_AUTO};
 _os_spi_t int_os_spi3 = {
-    .spi = &os_spi3,
-    .if_cfg = {
-        .command_bits = 0, // 0-16
-        .address_bits = 0, // 0-64
-        .dummy_bits = 0,
-        .mode = SPI_MODE0,
-        .duty_cycle_pos = 128, // default: 128
-        .cs_ena_pretrans = 0,  // only for half-duplex
-        .cs_ena_posttrans = 0,
-        .clock_speed_hz = SPI_MASTER_FREQ_8M,
-        .input_delay_ns = 0,
-        .spics_io_num = 15, // HSPI
-        .flags = 0,
-        .queue_size = 3,
-        .pre_cb = NULL,
-        .post_cb = NULL,
-    },
     .bus_cfg = {
-        .mosi_io_num = 13,       // HSPI
-        .miso_io_num = 12,       // HSPI
-        .sclk_io_num = 14,       // HSPI
-        .max_transfer_sz = 4092, // default: 4092 if DMA enabled, SOC_SPI_MAXIMUM_BUFFER_SIZE if DMA disabled
+        .mosi_io_num = 13, // HSPI
+        .miso_io_num = 12, // HSPI
+        .sclk_io_num = 14, // HSPI
+        .quadwp_io_num = -1,
+        .quadhd_io_num = -1,
+        .max_transfer_sz = 4096,
         .flags = SPICOMMON_BUSFLAG_MASTER,
     },
     .host = SPI3_HOST,
-    .dma_chan = 2};
+    .dma_chan = SPI_DMA_CH_AUTO};
 
+/**
+ * @brief based off fd, we can figure out which spi we are refering to
+ */
 _os_spi_t *map_spi(int fd)
 {
     switch (fd)
@@ -96,76 +62,104 @@ _os_spi_t *map_spi(int fd)
         return NULL;
     }
 }
-static uint8_t *allocate_dma_buffer(const size_t n)
+
+typedef struct _os_device_t
+{
+    uint8_t *rx_buf;
+    uint8_t *tx_buf;
+    spi_device_interface_config_t devcfg;
+    spi_device_handle_t handle;
+} _os_device_t;
+
+static uint8_t *allocate_dma_buffer(size_t n)
 {
     return (uint8_t *)heap_caps_malloc(n, MALLOC_CAP_DMA);
 }
 
-static int _spi_initialize(_os_spi_t *spi)
-{
-    spi->bus_cfg.flags |= SPICOMMON_BUSFLAG_MASTER;
-
-    esp_err_t e = spi_bus_initialize(spi->host, &spi->bus_cfg, spi->dma_chan);
-    if (e != ESP_OK)
-    {
-        return OS_RET_INT_ERR;
-    }
-
-    e = spi_bus_add_device(spi->host, &spi->if_cfg, &spi->handle);
-
-    if (e != ESP_OK)
-    {
-        return OS_RET_INT_ERR;
-    }
-
-    return OS_RET_OK;
-}
-
 static int _spi_deinit(_os_spi_t *spi)
 {
-    esp_err_t e = spi_bus_remove_device(spi->handle);
-
-    if (e != ESP_OK)
-    {
-        return OS_RET_INT_ERR;
-    }
-
-    e = spi_bus_free(spi->host);
-    if (e != ESP_OK)
-    {
-        return OS_RET_INT_ERR;
-    }
-
     return OS_RET_OK;
 }
 
-int os_spi_begin(os_spi_t *spi)
+int os_spi_initialize(os_spi_t *spi, int fd, os_spi_gpio_t *gpio)
 {
     if (spi == NULL)
     {
         return OS_RET_NULL_PTR;
     }
 
-    _os_spi_t *_spi = map_spi(spi->fd);
-    if (spi == NULL)
+    // Set map for internal spi structures
+    spi->fd = fd;
+    _os_spi_t *int_spi = map_spi(spi->fd);
+
+    if (int_spi == NULL)
     {
         return OS_RET_INVALID_PARAM;
     }
 
-    _spi->rx_buff = allocate_dma_buffer(SPI_TRANS_MAX_SIZE);
-    _spi->tx_buff = allocate_dma_buffer(SPI_TRANS_MAX_SIZE);
-
-    if (_spi->rx_buff == NULL | _spi->tx_buff == NULL)
+    if (gpio)
     {
-        return OS_RET_LOW_MEM_ERROR;
+        spi->gpio_man = *gpio;
+        int_spi->bus_cfg.mosi_io_num = gpio->mosi;
+        int_spi->bus_cfg.miso_io_num = gpio->miso;
+        int_spi->bus_cfg.sclk_io_num = gpio->clk;
     }
 
-    // Clear contents of data
-    memset(_spi->rx_buff, 0, SPI_TRANS_MAX_SIZE);
-    memset(_spi->tx_buff, 0, SPI_TRANS_MAX_SIZE);
+    esp_err_t e = spi_bus_initialize(int_spi->host, &int_spi->bus_cfg, int_spi->dma_chan);
+    int err = esp_to_os(e);
+    if (e != ESP_OK)
+    {
+        Serial.printf("Failed to initialize spi bus : %d\n", err);
+        return OS_RET_INT_ERR;
+    }
 
-    // Call esp32 commands to initialize spi
-    return _spi_initialize(_spi);
+    return OS_RET_OK;
+}
+
+int os_spi_couple_device(os_device_init_params init_params, os_device_t *device)
+{
+    if (device == NULL)
+    {
+        return OS_RET_NULL_PTR;
+    }
+
+    device->chip_select = init_params.cs_gpio;
+    device->dma_buf_size = init_params.dma_buf_size;
+    device->clk = init_params.clk;
+    device->bus = init_params.bus;
+    device->spi_mode = init_params.spi_mode;
+
+    device->device = malloc(sizeof(_os_device_t));
+    _os_device_t *spi_device = (_os_device_t *)device->device;
+
+    spi_device->rx_buf = allocate_dma_buffer(device->dma_buf_size);
+    spi_device->rx_buf = allocate_dma_buffer(device->dma_buf_size);
+
+    memset(spi_device->rx_buf, 0, SPI_TRANS_MAX_SIZE);
+    memset(spi_device->rx_buf, 0, SPI_TRANS_MAX_SIZE);
+    spi_device->devcfg = {
+        .mode = device->spi_mode, // SPI mode 0
+        .clock_speed_hz = device->clk,
+        .spics_io_num = device->chip_select, // CS pin
+        .queue_size = 20,                    // We want to be able to queue 7 transactions at a time
+        .pre_cb = NULL,                      // Specify pre-transfer callback to handle D/C line
+    };
+
+    _os_spi_t *int_bus = map_spi(device->bus->fd);
+    if (int_bus == NULL)
+    {
+        return OS_RET_INVALID_PARAM;
+    }
+
+    esp_err_t e = spi_bus_add_device(int_bus->host, &spi_device->devcfg, &spi_device->handle);
+    int err = esp_to_os(e);
+    if (err != OS_RET_OK)
+    {
+        Serial.printf("Failed to couple SPI device to interface: %d\n", err);
+        return err;
+    }
+
+    return OS_RET_OK;
 }
 
 int os_spi_end(os_spi_t *spi)
@@ -206,34 +200,6 @@ int os_spi_transfer(os_spi_t *spi, uint8_t *rx, uint8_t *tx, size_t size)
     {
         return OS_RET_NULL_PTR;
     }
-
-    _os_spi_t *_spi = map_spi(spi->fd);
-    if (spi == NULL)
-    {
-        return OS_RET_INVALID_PARAM;
-    }
-
-    spi_transaction_t trans;
-
-    trans.flags = 0;
-    trans.flags |= SPI_TRANS_VARIABLE_CMD;
-    trans.flags |= SPI_TRANS_VARIABLE_ADDR;
-    trans.flags |= SPI_TRANS_VARIABLE_DUMMY;
-
-    trans.addr = 0;
-    trans.cmd = 0;
-    trans.length = 8 * size;
-    trans.rxlength = 0;
-    trans.user = NULL;
-    trans.tx_buffer = _spi->tx_buff;
-    trans.rx_buffer = _spi->rx_buff;
-    esp_err_t e = spi_device_transmit(_spi->handle, &trans);
-
-    if (e != ESP_OK)
-    {
-        return OS_RET_INT_ERR;
-    }
-
     return OS_RET_OK;
 }
 
