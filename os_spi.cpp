@@ -76,11 +76,6 @@ static uint8_t *allocate_dma_buffer(size_t n)
     return (uint8_t *)heap_caps_malloc(n, MALLOC_CAP_DMA);
 }
 
-static int _spi_deinit(_os_spi_t *spi)
-{
-    return OS_RET_OK;
-}
-
 int os_spi_initialize(os_spi_t *spi, int fd, os_spi_gpio_t *gpio)
 {
     if (spi == NULL)
@@ -158,7 +153,29 @@ int os_spi_couple_device(os_device_init_params init_params, os_device_t *device)
         Serial.printf("Failed to couple SPI device to interface: %d\n", err);
         return err;
     }
+    return OS_RET_OK;
+}
 
+int os_spi_decouple_device(os_device_t *device)
+{
+    if (device == NULL | device->bus == NULL | device->device)
+    {
+        return OS_RET_INVALID_PARAM;
+    }
+
+    _os_device_t *spi_device = (_os_device_t *)device->device;
+    // Free DMA buffers
+    heap_caps_free(spi_device->rx_buf);
+    heap_caps_free(spi_device->tx_buf);
+
+    // Remove device from spi bus
+    spi_bus_remove_device(spi_device->handle);
+
+    // Free device resources
+    free(device->device);
+    // flag set
+    device->device = NULL;
+    device->bus = NULL;
     return OS_RET_OK;
 }
 
@@ -170,65 +187,50 @@ int os_spi_end(os_spi_t *spi)
     }
 
     _os_spi_t *_spi = map_spi(spi->fd);
-    if (spi == NULL)
+    if (_spi == NULL)
     {
         return OS_RET_INVALID_PARAM;
+    }
+
+    esp_err_t e = spi_bus_free(_spi->host);
+    int err = esp_to_os(e);
+    if (err == OS_RET_OK)
+    {
+        spi->fd = 0;
+    }
+    return err;
+}
+
+int os_spi_transfer(os_device_t *device, uint8_t *rx, uint8_t *tx, size_t size)
+{
+    if (device == NULL | device->device == NULL)
+    {
+        return OS_RET_NULL_PTR;
+    }
+
+    _os_device_t *spi_device = (_os_device_t *)device->device;
+
+    spi_device_acquire_bus(spi_device->handle);
+
+    spi_device_release_bus(spi_device->handle);
+    return OS_RET_OK;
+}
+
+int os_spi_send(os_device_t *device, uint8_t *buf, size_t size)
+{
+    if (device == NULL)
+    {
+        return OS_RET_NULL_PTR;
     }
 
     return OS_RET_OK;
 }
 
-int os_spi_setbus(os_spi_t *spi, uint32_t freq_hz)
+int os_spi_recieve(os_device_t *device, uint8_t *buf, size_t size)
 {
-    if (spi == NULL)
+    if (device == NULL)
     {
         return OS_RET_NULL_PTR;
-    }
-
-    _os_spi_t *_spi = map_spi(spi->fd);
-    if (spi == NULL)
-    {
-        return OS_RET_INVALID_PARAM;
-    }
-
-    return OS_RET_OK;
-}
-
-int os_spi_transfer(os_spi_t *spi, uint8_t *rx, uint8_t *tx, size_t size)
-{
-    if (spi == NULL)
-    {
-        return OS_RET_NULL_PTR;
-    }
-    return OS_RET_OK;
-}
-
-int os_spi_send(os_spi_t *spi, uint8_t *buf, size_t size)
-{
-    if (spi == NULL)
-    {
-        return OS_RET_NULL_PTR;
-    }
-
-    _os_spi_t *_spi = map_spi(spi->fd);
-    if (spi == NULL)
-    {
-        return OS_RET_INVALID_PARAM;
-    }
-    return OS_RET_OK;
-}
-
-int os_spi_recieve(os_spi_t *spi, uint8_t *buf, size_t size)
-{
-    if (spi == NULL)
-    {
-        return OS_RET_NULL_PTR;
-    }
-
-    _os_spi_t *_spi = map_spi(spi->fd);
-    if (spi == NULL)
-    {
-        return OS_RET_INVALID_PARAM;
     }
 
     return OS_RET_OK;
