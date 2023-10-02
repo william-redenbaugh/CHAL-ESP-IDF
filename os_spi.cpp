@@ -128,7 +128,7 @@ int os_spi_couple_device(os_device_init_params init_params, os_device_t *device)
     _os_device_t *spi_device = (_os_device_t *)device->device;
 
     spi_device->rx_buf = allocate_dma_buffer(device->dma_buf_size);
-    spi_device->rx_buf = allocate_dma_buffer(device->dma_buf_size);
+    spi_device->tx_buf = allocate_dma_buffer(device->dma_buf_size);
 
     memset(spi_device->rx_buf, 0, SPI_TRANS_MAX_SIZE);
     memset(spi_device->rx_buf, 0, SPI_TRANS_MAX_SIZE);
@@ -136,7 +136,7 @@ int os_spi_couple_device(os_device_init_params init_params, os_device_t *device)
         .mode = device->spi_mode, // SPI mode 0
         .clock_speed_hz = device->clk,
         .spics_io_num = device->chip_select, // CS pin
-        .queue_size = 20,                    // We want to be able to queue 7 transactions at a time
+        .queue_size = 2,                     // We want to be able to queue 7 transactions at a time
         .pre_cb = NULL,                      // Specify pre-transfer callback to handle D/C line
     };
 
@@ -158,7 +158,7 @@ int os_spi_couple_device(os_device_init_params init_params, os_device_t *device)
 
 int os_spi_decouple_device(os_device_t *device)
 {
-    if (device == NULL | device->bus == NULL | device->device)
+    if (device == NULL | device->bus == NULL | device->device == NULL)
     {
         return OS_RET_INVALID_PARAM;
     }
@@ -203,35 +203,103 @@ int os_spi_end(os_spi_t *spi)
 
 int os_spi_transfer(os_device_t *device, uint8_t *rx, uint8_t *tx, size_t size)
 {
-    if (device == NULL | device->device == NULL)
+    if (device == NULL | device->bus == NULL | device->device == NULL)
     {
         return OS_RET_NULL_PTR;
     }
 
     _os_device_t *spi_device = (_os_device_t *)device->device;
 
-    spi_device_acquire_bus(spi_device->handle);
+    // copy data from our buffer into the tx buffer
+    memcpy(spi_device->tx_buf, tx, size);
 
+    // Setup transaction details
+    spi_transaction_t transaction;
+    memset(&transaction, 0, sizeof(transaction));
+    transaction.flags = 0;
+    transaction.rx_buffer = spi_device->rx_buf;
+    transaction.tx_buffer = spi_device->tx_buf;
+    transaction.length = size;
+
+    spi_device_acquire_bus(spi_device->handle, portMAX_DELAY);
+    esp_err_t e = spi_device_transmit(spi_device->handle, &transaction);
     spi_device_release_bus(spi_device->handle);
-    return OS_RET_OK;
+
+    int err = esp_to_os(e);
+    if (err != OS_RET_OK)
+    {
+        return err;
+    }
+
+    // Copy contents back into the RX buffer
+    memcpy(rx, spi_device->rx_buf, size);
+    return err;
 }
 
 int os_spi_send(os_device_t *device, uint8_t *buf, size_t size)
 {
-    if (device == NULL)
+    if (device == NULL | device->bus == NULL | device->device == NULL)
     {
         return OS_RET_NULL_PTR;
     }
 
-    return OS_RET_OK;
+    _os_device_t *spi_device = (_os_device_t *)device->device;
+
+    // copy data from our buffer into the tx buffer
+    memcpy(spi_device->tx_buf, buf, size);
+
+    // Setup transaction details
+    spi_transaction_t transaction;
+    memset(&transaction, 0, sizeof(transaction));
+    transaction.flags = 0;
+    transaction.rx_buffer = spi_device->rx_buf;
+    transaction.tx_buffer = spi_device->tx_buf;
+    transaction.length = size;
+
+    spi_device_acquire_bus(spi_device->handle, portMAX_DELAY);
+    esp_err_t e = spi_device_transmit(spi_device->handle, &transaction);
+    spi_device_release_bus(spi_device->handle);
+
+    int err = esp_to_os(e);
+    if (err != OS_RET_OK)
+    {
+        return err;
+    }
+    return err;
 }
 
 int os_spi_recieve(os_device_t *device, uint8_t *buf, size_t size)
 {
-    if (device == NULL)
+    if (device == NULL | device->bus == NULL | device->device == NULL)
     {
         return OS_RET_NULL_PTR;
     }
 
-    return OS_RET_OK;
+    _os_device_t *spi_device = (_os_device_t *)device->device;
+
+    if (size > device->dma_buf_size)
+    {
+        return OS_RET_NO_MORE_RESOURCES;
+    }
+    // Setup transaction details
+    spi_transaction_t transaction;
+    memset(&transaction, 0, sizeof(transaction));
+    transaction.flags = 0;
+    transaction.rx_buffer = spi_device->rx_buf;
+    transaction.tx_buffer = spi_device->tx_buf;
+    transaction.length = size;
+
+    spi_device_acquire_bus(spi_device->handle, portMAX_DELAY);
+    esp_err_t e = spi_device_transmit(spi_device->handle, &transaction);
+    spi_device_release_bus(spi_device->handle);
+
+    int err = esp_to_os(e);
+    if (err != OS_RET_OK)
+    {
+        return err;
+    }
+
+    // Copy contents back into the RX buffer
+    memcpy(buf, spi_device->rx_buf, size);
+    return err;
 }
