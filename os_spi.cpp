@@ -2,6 +2,16 @@
 #include "driver/spi_master.h"
 #include <esp_heap_caps.h>
 
+#define SPI_DEBUGGING
+#ifdef SPI_DEBUGGING
+#define SPI_DEBUG(e, ...)                  \
+    os_printf("[SPI MATRIX DEBUGGING]: "); \
+    os_printf(e);                          \
+    os_printf("\n")
+#else
+#define SPI_DEBUG(e, ...) (void)(e)
+#endif
+
 /**
  * @brief Internal SPI initialization structures for the esp32 platform
  */
@@ -25,7 +35,7 @@ _os_spi_t int_os_spi2 = {
         .sclk_io_num = 36, // HSPI
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
-        .max_transfer_sz = 4096,
+        .max_transfer_sz = 0,
 
         .flags = SPICOMMON_BUSFLAG_MASTER,
     },
@@ -38,7 +48,7 @@ _os_spi_t int_os_spi3 = {
         .sclk_io_num = 14, // HSPI
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
-        .max_transfer_sz = 4096,
+        .max_transfer_sz = 0,
         .flags = SPICOMMON_BUSFLAG_MASTER,
     },
     .host = SPI3_HOST,
@@ -80,6 +90,7 @@ int os_spi_initialize(os_spi_t *spi, int fd, os_spi_gpio_t *gpio)
 {
     if (spi == NULL)
     {
+        SPI_DEBUG("SPI NULL POINTER");
         return OS_RET_NULL_PTR;
     }
 
@@ -104,6 +115,7 @@ int os_spi_initialize(os_spi_t *spi, int fd, os_spi_gpio_t *gpio)
     int err = esp_to_os(e);
     if (e != ESP_OK)
     {
+        SPI_DEBUG("ESPIDF FAILED TO INITIALIZE");
         Serial.printf("Failed to initialize spi bus : %d\n", err);
         return OS_RET_INT_ERR;
     }
@@ -115,6 +127,15 @@ int os_spi_couple_device(os_device_init_params init_params, os_device_t *device)
 {
     if (device == NULL)
     {
+        Serial.println("Failed to find device");
+        SPI_DEBUG("FAILED TO FIND DEVICE");
+        return OS_RET_NULL_PTR;
+    }
+
+    if (init_params.bus == NULL)
+    {
+        Serial.println("Failed to find bus");
+        SPI_DEBUG("FAILED TO FIND SPI BUS");
         return OS_RET_NULL_PTR;
     }
 
@@ -139,10 +160,14 @@ int os_spi_couple_device(os_device_init_params init_params, os_device_t *device)
         .queue_size = 2,                     // We want to be able to queue 7 transactions at a time
         .pre_cb = NULL,                      // Specify pre-transfer callback to handle D/C line
     };
-
+    if (device->bus == NULL)
+    {
+        SPI_DEBUG("FAILED TO FIND MAP TO SPI BUS FRONTEND");
+    }
     _os_spi_t *int_bus = map_spi(device->bus->fd);
     if (int_bus == NULL)
     {
+        SPI_DEBUG("FAILED TO FIND MAP TO CORRECT INTERFACE %d", device->bus->fd);
         return OS_RET_INVALID_PARAM;
     }
 
@@ -245,6 +270,7 @@ int os_spi_send(os_device_t *device, uint8_t *buf, size_t size)
 
     _os_device_t *spi_device = (_os_device_t *)device->device;
 
+    Serial.println("SPI send matrix");
     // copy data from our buffer into the tx buffer
     memcpy(spi_device->tx_buf, buf, size);
 
