@@ -280,7 +280,7 @@ int os_spi_send(os_device_t *device, uint8_t *buf, size_t size)
     transaction.flags = 0;
     transaction.rx_buffer = spi_device->rx_buf;
     transaction.tx_buffer = spi_device->tx_buf;
-    transaction.length = size;
+    transaction.length = size * 8;
 
     spi_device_acquire_bus(spi_device->handle, portMAX_DELAY);
     esp_err_t e = spi_device_transmit(spi_device->handle, &transaction);
