@@ -270,7 +270,6 @@ int os_spi_send(os_device_t *device, uint8_t *buf, size_t size)
 
     _os_device_t *spi_device = (_os_device_t *)device->device;
 
-    Serial.println("SPI send matrix");
     // copy data from our buffer into the tx buffer
     memcpy(spi_device->tx_buf, buf, size);
 
