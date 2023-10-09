@@ -11,6 +11,12 @@ typedef struct os_i2s
     i2s_config_t cfg;
 } os_i2s_host_t;
 
+typedef struct os_i2s_device
+{
+    int chip_select_gpio;
+    os_i2s_host_t *host;
+} os_i2s_device_t;
+
 /**
  * @brief Remaps the esp errores to OS errors
  */

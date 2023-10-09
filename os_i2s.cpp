@@ -42,11 +42,11 @@ static inline i2s_channel_fmt_t map_channels(os_i2s_channels_t chan)
     case I2S_CHANNEL_RIGHT:
         chn_fmt = I2S_CHANNEL_FMT_ONLY_RIGHT;
         break;
-
+#if SOC_I2S_SUPPORTS_TDM
     case I2S_CHANNEL_BOTH:
         chn_fmt = I2S_CHANNEL_FMT_MULTIPLE;
         break;
-
+#endif
     default:
         chn_fmt = I2S_CHANNEL_FMT_ONLY_LEFT;
         break;

@@ -27,10 +27,24 @@ typedef struct _os_spi_t
 /**
  * @brief SPI2 and SPI3 configuration, setting based off default GPIOs
  */
-_os_spi_t int_os_spi2 = {
+
+static _os_spi_t int_os_spi = {
     .bus_cfg = {
         .mosi_io_num = 35, // HSPI
+        .miso_io_num = 37, // HSPI
+        .sclk_io_num = 36, // HSPI
+        .quadwp_io_num = -1,
+        .quadhd_io_num = -1,
+        .max_transfer_sz = 0,
 
+        .flags = SPICOMMON_BUSFLAG_MASTER,
+    },
+    .host = SPI1_HOST,
+    .dma_chan = SPI_DMA_CH_AUTO};
+
+static _os_spi_t int_os_spi2 = {
+    .bus_cfg = {
+        .mosi_io_num = 35, // HSPI
         .miso_io_num = 37, // HSPI
         .sclk_io_num = 36, // HSPI
         .quadwp_io_num = -1,
@@ -41,17 +55,19 @@ _os_spi_t int_os_spi2 = {
     },
     .host = SPI2_HOST,
     .dma_chan = SPI_DMA_CH_AUTO};
-_os_spi_t int_os_spi3 = {
+
+static _os_spi_t int_os_spi3 = {
     .bus_cfg = {
-        .mosi_io_num = 13, // HSPI
-        .miso_io_num = 12, // HSPI
-        .sclk_io_num = 14, // HSPI
+        .mosi_io_num = 35, // HSPI
+        .miso_io_num = 37, // HSPI
+        .sclk_io_num = 36, // HSPI
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
         .max_transfer_sz = 0,
+
         .flags = SPICOMMON_BUSFLAG_MASTER,
     },
-    .host = SPI3_HOST,
+    .host = SPI2_HOST,
     .dma_chan = SPI_DMA_CH_AUTO};
 
 /**
@@ -61,6 +77,8 @@ _os_spi_t *map_spi(int fd)
 {
     switch (fd)
     {
+    case 1:
+        return &int_os_spi;
     case 2:
         return &int_os_spi2;
         break;
