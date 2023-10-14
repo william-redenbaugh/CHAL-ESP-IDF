@@ -21,6 +21,8 @@
 #define SPP_DATA_MAX_LEN (512)
 #define SPP_CMD_MAX_LEN (20)
 #define SPP_STATUS_MAX_LEN (20)
+#define ESP_SPP_APP_ID 0x56
+
 #define SPP_DATA_BUFF_MAX_LEN (2 * 1024)
 
 /// Attributes State Machine
@@ -267,6 +269,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
     uint8_t res = 0xff;
 
     ESP_LOGI(GATTS_TABLE_TAG, "event = %x", event);
+    Serial.printf("event = %x\n", event);
     switch (event)
     {
     case ESP_GATTS_REG_EVT:
@@ -440,7 +443,7 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
 {
     esp_err_t err;
     print("GAP_EVT, event %d", event);
-
+    Serial.printf("GAP_EVT, event %d", event);
     switch (event)
     {
     case ESP_GAP_BLE_ADV_DATA_RAW_SET_COMPLETE_EVT:
@@ -503,6 +506,10 @@ int hal_ble_serial_receive(uint8_t *data, size_t len)
     return safe_fifo_dequeue(&serial_queue, len, data);
 }
 
+int hal_ble_serial_send(uint8_t *data, size_t len)
+{
+}
+
 hal_bt_serial_err_t hal_ble_serial_init(void)
 {
     // Release all existing ble profiles
@@ -548,6 +555,7 @@ hal_bt_serial_err_t hal_ble_serial_init(void)
         return HAL_BT_SERIAL_ERROR;
     }
 
+    esp_ble_gatts_app_register(ESP_SPP_APP_ID);
     int n = safe_fifo_init(&serial_queue, RX_BUFFER_SIZE, sizeof(uint8_t));
 
     if (n != OS_RET_OK)
