@@ -52,6 +52,9 @@ static void os_udp_server_thread(void *parameters)
     int addr_family = 10;
     int ip_protocol = 0;
     struct sockaddr_in6 dest_addr;
+    ipv4_t ipv4_addr;
+    ipv6_t ipv6_ardr;
+
     for (;;)
     {
         if (addr_family == AF_INET)
@@ -120,6 +123,18 @@ static void os_udp_server_thread(void *parameters)
         msg.msg_iovlen = 1;
         msg.msg_name = (struct sockaddr *)&source_addr;
         msg.msg_namelen = socklen;
+
+        int len = recvmsg(sock, &msg, 0);
+
+        // Run callback on server side
+        if (udp_server->params.ipv_type == IPV4)
+        {
+            udp_server->params.cb(udp_server, &ipv4_addr, IPV4);
+        }
+        else
+        {
+            udp_server->params.cb(udp_server, &ipv6_ardr, IPV6);
+        }
     }
 }
 
