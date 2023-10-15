@@ -10,7 +10,9 @@
 #include "nvs_flash.h"
 
 #include "lwip/err.h"
+#include "lwip/sockets.h"
 #include "lwip/sys.h"
+#include <lwip/netdb.h>
 
 typedef enum wifi_init_status
 {
@@ -40,6 +42,109 @@ static EventGroupHandle_t s_wifi_event_group;
 static int s_retry_num = 0;
 
 esp_netif_t *current_netif_handler = NULL;
+typedef struct os_udp_server_esp32_t
+{
+} os_udp_server_esp32_t;
+
+static void os_udp_server_thread(void *parameters)
+{
+    os_udp_server_instance_t *udp_server = (os_udp_server_instance_t *)parameters;
+    int addr_family = 10;
+    int ip_protocol = 0;
+    struct sockaddr_in6 dest_addr;
+    for (;;)
+    {
+        if (addr_family == AF_INET)
+        {
+            struct sockaddr_in *dest_addr_ip4 = (struct sockaddr_in *)&dest_addr;
+            dest_addr_ip4->sin_addr.s_addr = htonl(INADDR_ANY);
+            dest_addr_ip4->sin_family = AF_INET;
+            dest_addr_ip4->sin_port = udp_server->params.port;
+            ip_protocol = IPPROTO_IP;
+        }
+        else if (addr_family == AF_INET6)
+        {
+            bzero(&dest_addr.sin6_addr.un, sizeof(dest_addr.sin6_addr.un));
+            dest_addr.sin6_family = AF_INET6;
+            dest_addr.sin6_port = udp_server->params.port;
+            ip_protocol = IPPROTO_IPV6;
+        }
+
+        int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
+        if (sock < 0)
+        {
+            ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
+            break;
+        }
+        ESP_LOGI(TAG, "Socket created");
+
+        int enable = 1;
+        lwip_setsockopt(sock, IPPROTO_IP, IP_PKTINFO, &enable, sizeof(enable));
+
+        if (addr_family == AF_INET6)
+        {
+            // Note that by default IPV6 binds to both protocols, it is must be disabled
+            // if both protocols used at the same time (used in CI)
+            int opt = 1;
+            setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+            setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, &opt, sizeof(opt));
+        }
+
+        // Set timeout
+        struct timeval timeout;
+        timeout.tv_sec = 10;
+        timeout.tv_usec = 0;
+        setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof timeout);
+
+        int err = bind(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+        if (err < 0)
+        {
+            ESP_LOGE(TAG, "Socket unable to bind: errno %d", errno);
+        }
+        ESP_LOGI(TAG, "Socket bound, port %d", PORT);
+
+        struct sockaddr_storage source_addr; // Large enough for both IPv4 or IPv6
+        socklen_t socklen = sizeof(source_addr);
+
+        struct iovec iov;
+        struct msghdr msg;
+        struct cmsghdr *cmsgtmp;
+        u8_t cmsg_buf[CMSG_SPACE(sizeof(struct in_pktinfo))];
+
+        iov.iov_base = udp_server->recv_buffer;
+        iov.iov_len = udp_server->params.max_buffer_size;
+        msg.msg_control = cmsg_buf;
+        msg.msg_controllen = sizeof(cmsg_buf);
+        msg.msg_flags = 0;
+        msg.msg_iov = &iov;
+        msg.msg_iovlen = 1;
+        msg.msg_name = (struct sockaddr *)&source_addr;
+        msg.msg_namelen = socklen;
+    }
+}
+
+int os_udp_init_server(os_udp_server_instance_t *udp_server, os_udp_server_params_t udp_server_params)
+{
+    if (udp_server == NULL)
+    {
+        return OS_RET_NULL_PTR;
+    }
+
+    // Copy all the params over in one fell swoop
+    udp_server->params = udp_server_params;
+
+    // Default construct the udp server
+    udp_server->internal_udp_server_struct = malloc(sizeof(os_udp_server_esp32_t));
+    memset(&udp_server->internal_udp_server_struct, 0, sizeof(os_udp_server_esp32_t));
+    udp_server->recv_buffer = (uint8_t *)malloc(sizeof(uint8_t) * udp_server_params.max_buffer_size);
+
+    udp_server->deconstructed = 0;
+
+    // Thread handling socket info
+    os_add_thread(os_udp_server_thread, (void *)udp_server, 2048, NULL);
+
+    return OS_RET_OK;
+}
 
 static void event_handler(void *arg, esp_event_base_t event_base,
                           int32_t event_id, void *event_data)
