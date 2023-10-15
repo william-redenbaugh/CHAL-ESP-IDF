@@ -508,6 +508,8 @@ int hal_ble_serial_receive(uint8_t *data, size_t len)
 
 int hal_ble_serial_send(uint8_t *data, size_t len)
 {
+    // Stub
+    return OS_RET_OK;
 }
 
 hal_bt_serial_err_t hal_ble_serial_init(void)
