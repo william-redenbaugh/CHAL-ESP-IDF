@@ -18,6 +18,14 @@
 #include "esp_bt_defs.h"
 #include "esp_bt_main.h"
 
+#define BLE_SPP_DEBUG
+
+#ifdef BLE_SPP_DEBUG
+#define ble_spp_printf(e, ...) Serial.printf(e)
+#else
+#define ble_spp_printf(e, ...) (void)e
+#endif
+
 #define SPP_DATA_MAX_LEN (512)
 #define SPP_CMD_MAX_LEN (20)
 #define SPP_STATUS_MAX_LEN (20)
@@ -92,7 +100,7 @@ static const uint8_t spp_adv_data[23] = {
     /* Complete List of 16-bit Service Class UUIDs */
     0x03, 0x03, 0xF0, 0xAB,
     /* Complete Local Name in advertising */
-    0x0F, 0x09, 'E', 'S', 'P', '_', 'S', 'P', 'P', '_', 'S', 'E', 'R', 'V', 'E', 'R'};
+    0x0F, 0x09, 'R', 'a', 'v', 'e', 'R', 'a', 'v', 'e', 'L', 'i', 'g', 'h', 't'};
 
 struct gatts_profile_inst
 {
@@ -283,6 +291,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         esp_ble_gatts_create_attr_tab(spp_gatt_db, gatts_if, SPP_IDX_NB, SPP_SVC_INST_ID);
         break;
     case ESP_GATTS_READ_EVT:
+        ble_spp_printf("Received data\n");
         res = find_char_and_desr_index(p_data->read.handle);
         if (res == SPP_IDX_SPP_STATUS_VAL)
         {
@@ -291,6 +300,8 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         break;
     case ESP_GATTS_WRITE_EVT:
     {
+        ble_spp_printf("Data written!");
+
         res = find_char_and_desr_index(p_data->write.handle);
         if (p_data->write.is_prep == false)
         {
@@ -344,7 +355,9 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
 #ifdef SPP_DEBUG_MODE
                 esp_log_buffer_char(GATTS_TABLE_TAG, (char *)(p_data->write.value), p_data->write.len);
 #else
+                ble_spp_printf("\n");
                 uart_write_bytes(UART_NUM_0, (char *)(p_data->write.value), p_data->write.len);
+                ble_spp_printf("\n");
 #endif
             }
             else
@@ -361,7 +374,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
     }
     case ESP_GATTS_EXEC_WRITE_EVT:
     {
-        ESP_LOGI(GATTS_TABLE_TAG, "ESP_GATTS_EXEC_WRITE_EVT");
+        ble_spp_printf("Data incoming!");
         if (p_data->exec_write.exec_write_flag)
         {
             print_write_buffer();
@@ -387,6 +400,8 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         spp_gatts_if = gatts_if;
         is_connected = true;
         memcpy(&spp_remote_bda, &p_data->connect.remote_bda, sizeof(esp_bd_addr_t));
+
+        ble_spp_printf("Connected to a device!\n");
 #ifdef SUPPORT_HEARTBEAT
         uint16_t cmd = 0;
         xQueueSend(cmd_heartbeat_queue, &cmd, 10 / portTICK_PERIOD_MS);
@@ -400,6 +415,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         heartbeat_count_num = 0;
 #endif
         esp_ble_gap_start_advertising(&spp_adv_params);
+        ble_spp_printf("Disconnected from device\n");
         break;
     case ESP_GATTS_OPEN_EVT:
         break;

@@ -6,6 +6,17 @@
 // ESP32 I2C bus number
 #define I2C_NUM I2C_NUM_0
 
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+
+#define I2C_SDA GPIO_NUM_21
+#define I2C_SCL GPIO_NUM_26
+#elif CONFIG_IDF_TARGET_ESP32C3
+
+#define I2C_SDA GPIO_NUM_8
+#define I2C_SCL GPIO_NUM_9
+#else
+
+#endif
 int os_i2c_begin(os_i2c_t *i2c, int fd, int speed, os_i2c_gpio_t *gpio_conf)
 {
     i2c_config_t conf;
@@ -17,8 +28,8 @@ int os_i2c_begin(os_i2c_t *i2c, int fd, int speed, os_i2c_gpio_t *gpio_conf)
     }
     else
     {
-        conf.sda_io_num = GPIO_NUM_21; // Replace with your SDA GPIO pin number
-        conf.scl_io_num = GPIO_NUM_26; // Replace with your SCL GPIO pin number
+        conf.sda_io_num = I2C_SDA; // Replace with your SDA GPIO pin number
+        conf.scl_io_num = I2C_SCL; // Replace with your SCL GPIO pin number
     }
 
     conf.mode = I2C_MODE_MASTER;
