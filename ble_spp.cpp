@@ -82,6 +82,10 @@ static esp_bd_addr_t spp_remote_bda = {
 
 static uint16_t spp_handle_table[SPP_IDX_NB];
 
+static int handle = -1;
+
+
+
 /// SPP Service
 static const uint16_t spp_service_uuid = 0xABF0;
 /// Characteristic UUID
@@ -208,6 +212,25 @@ static const uint16_t spp_heart_beat_uuid = ESP_GATT_UUID_SPP_HEARTBEAT;
 static const uint8_t spp_heart_beat_val[2] = {0x00, 0x00};
 static const uint8_t spp_heart_beat_ccc[2] = {0x00, 0x00};
 #endif
+
+static void bt_spp_recv_cb(uint8_t *data, size_t len)
+{
+    ble_spp_printf("Sending data to queue\n");
+}
+
+int hal_ble_serial_receive(uint8_t *data, size_t len)
+{
+}
+
+int hal_ble_serial_receive_block(uint8_t *data, size_t len)
+{
+}
+
+int hal_ble_serial_send(uint8_t *data, size_t len)
+{
+    // Stub
+    return OS_RET_OK;
+}
 
 /// Full HRS Database Description - Used to add attributes into the database
 static const esp_gatts_attr_db_t spp_gatt_db[SPP_IDX_NB] =
@@ -352,13 +375,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
 #endif
             else if (res == SPP_IDX_SPP_DATA_RECV_VAL)
             {
-#ifdef SPP_DEBUG_MODE
-                esp_log_buffer_char(GATTS_TABLE_TAG, (char *)(p_data->write.value), p_data->write.len);
-#else
-                ble_spp_printf("\n");
-                uart_write_bytes(UART_NUM_0, (char *)(p_data->write.value), p_data->write.len);
-                ble_spp_printf("\n");
-#endif
+                bt_spp_recv_cb((p_data->write.value), (p_data->write.len));
             }
             else
             {
@@ -450,11 +467,6 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
     }
 }
 
-static int handle = -1;
-
-// Queue holding all UART data.
-static safe_fifo_t serial_queue;
-
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
 {
     esp_err_t err;
@@ -512,22 +524,6 @@ static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_
     } while (0);
 }
 
-static void bt_spp_recv_cb(uint8_t *data, size_t len)
-{
-    safe_fifo_enqueue(&serial_queue, len, data);
-}
-
-int hal_ble_serial_receive(uint8_t *data, size_t len)
-{
-    return safe_fifo_dequeue(&serial_queue, len, data);
-}
-
-int hal_ble_serial_send(uint8_t *data, size_t len)
-{
-    // Stub
-    return OS_RET_OK;
-}
-
 hal_bt_serial_err_t hal_ble_serial_init(void)
 {
     // Release all existing ble profiles
@@ -574,7 +570,6 @@ hal_bt_serial_err_t hal_ble_serial_init(void)
     }
 
     esp_ble_gatts_app_register(ESP_SPP_APP_ID);
-    int n = safe_fifo_init(&serial_queue, RX_BUFFER_SIZE, sizeof(uint8_t));
 
     if (n != OS_RET_OK)
     {
