@@ -18,6 +18,8 @@
 #include "esp_bt_defs.h"
 #include "esp_bt_main.h"
 
+#define FIFO_MAX_SIZE (4096)
+
 #define BLE_SPP_DEBUG
 
 #ifdef BLE_SPP_DEBUG
@@ -83,8 +85,7 @@ static esp_bd_addr_t spp_remote_bda = {
 static uint16_t spp_handle_table[SPP_IDX_NB];
 
 static int handle = -1;
-
-
+static byte_array_fifo *spp_fifo;
 
 /// SPP Service
 static const uint16_t spp_service_uuid = 0xABF0;
@@ -216,14 +217,30 @@ static const uint8_t spp_heart_beat_ccc[2] = {0x00, 0x00};
 static void bt_spp_recv_cb(uint8_t *data, size_t len)
 {
     ble_spp_printf("Sending data to queue\n");
+    int ret = enqueue_bytes_bytearray_fifo(spp_fifo, data, len);
+
+    if(ret != OS_RET_OK){
+        ble_spp_printf("Failed to enqueue data into the bytearray for the SPP rx driver");
+    }
 }
 
 int hal_ble_serial_receive(uint8_t *data, size_t len)
 {
+    return dequeue_bytes_bytearray_fifo(spp_fifo, data, len);
 }
 
 int hal_ble_serial_receive_block(uint8_t *data, size_t len)
 {
+    int ret = block_until_n_bytes_fifo(spp_fifo, len);
+
+    ble_spp_printf("hmm: %d", ret);
+    int n = dequeue_bytes_bytearray_fifo(spp_fifo, data, len);
+    
+    if(n != len){
+        ble_spp_printf("Mismatched data rx sise %d, %d", n, len);
+        return OS_RET_INVALID_PARAM;
+    }
+    return 0;
 }
 
 int hal_ble_serial_send(uint8_t *data, size_t len)
@@ -526,6 +543,14 @@ static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_
 
 hal_bt_serial_err_t hal_ble_serial_init(void)
 {
+
+    // Generate a fifo to store all the date into
+    spp_fifo = create_byte_array_fifo(FIFO_MAX_SIZE);
+
+    if(spp_fifo == nullptr){
+        return HAL_BT_SERIAL_BUFFER_OVERFLOW;
+    }
+    
     // Release all existing ble profiles
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
 
@@ -570,11 +595,6 @@ hal_bt_serial_err_t hal_ble_serial_init(void)
     }
 
     esp_ble_gatts_app_register(ESP_SPP_APP_ID);
-
-    if (n != OS_RET_OK)
-    {
-        return HAL_BT_SERIAL_ERROR;
-    }
-
+    
     return HAL_BT_SERIAL_OK;
 }

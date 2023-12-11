@@ -44,11 +44,24 @@ static int s_retry_num = 0;
 esp_netif_t *current_netif_handler = NULL;
 typedef struct os_udp_server_esp32_t
 {
+    int sock;
+    struct iovec iov;
+    struct msghdr msg;
+
 } os_udp_server_esp32_t;
+
+void os_udp_send_packet_from_cb(os_udp_server_instance_t *udp_server, uint8_t *data, size_t numbytes)
+{
+}
+
+void os_udp_receive_packet_from_cb(os_udp_server_instance_t *udp_server, uint8_t *data, size_t numbytes)
+{
+}
 
 static void os_udp_server_thread(void *parameters)
 {
     os_udp_server_instance_t *udp_server = (os_udp_server_instance_t *)parameters;
+    os_udp_server_esp32_t *int_udp_server = (os_udp_server_esp32_t *)udp_server->internal_udp_server_struct;
     int addr_family = 10;
     int ip_protocol = 0;
     struct sockaddr_in6 dest_addr;
@@ -73,8 +86,8 @@ static void os_udp_server_thread(void *parameters)
             ip_protocol = IPPROTO_IPV6;
         }
 
-        int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
-        if (sock < 0)
+        int_udp_server->sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
+        if (int_udp_server->sock < 0)
         {
             ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
             break;
@@ -82,24 +95,24 @@ static void os_udp_server_thread(void *parameters)
         ESP_LOGI(TAG, "Socket created");
 
         int enable = 1;
-        lwip_setsockopt(sock, IPPROTO_IP, IP_PKTINFO, &enable, sizeof(enable));
+        lwip_setsockopt(int_udp_server->sock, IPPROTO_IP, IP_PKTINFO, &enable, sizeof(enable));
 
         if (addr_family == AF_INET6)
         {
             // Note that by default IPV6 binds to both protocols, it is must be disabled
             // if both protocols used at the same time (used in CI)
             int opt = 1;
-            setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-            setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, &opt, sizeof(opt));
+            setsockopt(int_udp_server->sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+            setsockopt(int_udp_server->sock, IPPROTO_IPV6, IPV6_V6ONLY, &opt, sizeof(opt));
         }
 
         // Set timeout
         struct timeval timeout;
         timeout.tv_sec = 10;
         timeout.tv_usec = 0;
-        setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof timeout);
+        setsockopt(int_udp_server->sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof timeout);
 
-        int err = bind(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+        int err = bind(int_udp_server->sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
         if (err < 0)
         {
             ESP_LOGE(TAG, "Socket unable to bind: errno %d", errno);
@@ -109,26 +122,25 @@ static void os_udp_server_thread(void *parameters)
         struct sockaddr_storage source_addr; // Large enough for both IPv4 or IPv6
         socklen_t socklen = sizeof(source_addr);
 
-        struct iovec iov;
-        struct msghdr msg;
         struct cmsghdr *cmsgtmp;
         u8_t cmsg_buf[CMSG_SPACE(sizeof(struct in_pktinfo))];
 
-        iov.iov_base = udp_server->recv_buffer;
-        iov.iov_len = udp_server->params.max_buffer_size;
-        msg.msg_control = cmsg_buf;
-        msg.msg_controllen = sizeof(cmsg_buf);
-        msg.msg_flags = 0;
-        msg.msg_iov = &iov;
-        msg.msg_iovlen = 1;
-        msg.msg_name = (struct sockaddr *)&source_addr;
-        msg.msg_namelen = socklen;
+        int_udp_server->iov.iov_base = udp_server->recv_buffer;
+        int_udp_server->iov.iov_len = udp_server->params.max_buffer_size;
+        int_udp_server->msg.msg_control = cmsg_buf;
+        int_udp_server->msg.msg_controllen = sizeof(cmsg_buf);
+        int_udp_server->msg.msg_flags = 0;
+        int_udp_server->msg.msg_iov = &int_udp_server->iov;
+        int_udp_server->msg.msg_iovlen = 1;
+        int_udp_server->msg.msg_name = (struct sockaddr *)&source_addr;
+        int_udp_server->msg.msg_namelen = socklen;
 
-        int len = recvmsg(sock, &msg, 0);
+        int len = recvmsg(int_udp_server->sock, &int_udp_server->msg, 0);
 
         // Run callback on server side
         if (udp_server->params.ipv_type == IPV4)
         {
+            // This callback should essentially be a loop that you sit in until the socket is closed.
             udp_server->params.cb(udp_server, &ipv4_addr, IPV4);
         }
         else
