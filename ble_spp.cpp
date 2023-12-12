@@ -220,7 +220,7 @@ static void bt_spp_recv_cb(uint8_t *data, size_t len)
     int ret = enqueue_bytes_bytearray_fifo(spp_fifo, data, len);
 
     if(ret != OS_RET_OK){
-        ble_spp_printf("Failed to enqueue data into the bytearray for the SPP rx driver");
+        Serial.printf("\nFailed to enqueue data into the bytearray for the SPP rx driver %d\n", ret);
     }
 }
 
@@ -233,13 +233,20 @@ int hal_ble_serial_receive_block(uint8_t *data, size_t len)
 {
     int ret = block_until_n_bytes_fifo(spp_fifo, len);
 
-    ble_spp_printf("hmm: %d", ret);
+    Serial.printf("\nhmm: %d\n", ret);
     int n = dequeue_bytes_bytearray_fifo(spp_fifo, data, len);
     
     if(n != len){
-        ble_spp_printf("Mismatched data rx sise %d, %d", n, len);
+        ble_spp_printf("\nMismatched data rx sise %d, %d\n", n, len);
+        hal_ble_flush_serial();
         return OS_RET_INVALID_PARAM;
     }
+    return 0;
+}
+
+int hal_ble_flush_serial(void){
+    fifo_flush(spp_fifo);
+
     return 0;
 }
 
