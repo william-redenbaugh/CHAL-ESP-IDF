@@ -85,7 +85,9 @@ static esp_bd_addr_t spp_remote_bda = {
 static uint16_t spp_handle_table[SPP_IDX_NB];
 
 static int handle = -1;
-static byte_array_fifo *spp_fifo;
+static byte_array_fifo *spp_in_fifo;
+static byte_array_fifo *spp_out_fifo;
+
 
 /// SPP Service
 static const uint16_t spp_service_uuid = 0xABF0;
@@ -217,7 +219,7 @@ static const uint8_t spp_heart_beat_ccc[2] = {0x00, 0x00};
 static void bt_spp_recv_cb(uint8_t *data, size_t len)
 {
     ble_spp_printf("Sending data to queue\n");
-    int ret = enqueue_bytes_bytearray_fifo(spp_fifo, data, len);
+    int ret = enqueue_bytes_bytearray_fifo(spp_in_fifo, data, len);
 
     if(ret != OS_RET_OK){
         Serial.printf("\nFailed to enqueue data into the bytearray for the SPP rx driver %d\n", ret);
@@ -226,15 +228,15 @@ static void bt_spp_recv_cb(uint8_t *data, size_t len)
 
 int hal_ble_serial_receive(uint8_t *data, size_t len)
 {
-    return dequeue_bytes_bytearray_fifo(spp_fifo, data, len);
+    return dequeue_bytes_bytearray_fifo(spp_in_fifo, data, len);
 }
 
 int hal_ble_serial_receive_block(uint8_t *data, size_t len)
 {
-    int ret = block_until_n_bytes_fifo(spp_fifo, len);
+    int ret = block_until_n_bytes_fifo(spp_in_fifo, len);
 
     Serial.printf("\nhmm: %d\n", ret);
-    int n = dequeue_bytes_bytearray_fifo(spp_fifo, data, len);
+    int n = dequeue_bytes_bytearray_fifo(spp_in_fifo, data, len);
     
     if(n != len){
         ble_spp_printf("\nMismatched data rx sise %d, %d\n", n, len);
@@ -245,15 +247,31 @@ int hal_ble_serial_receive_block(uint8_t *data, size_t len)
 }
 
 int hal_ble_flush_serial(void){
-    fifo_flush(spp_fifo);
-
+    fifo_flush(spp_in_fifo);
     return 0;
+}
+
+#define SPP_MTU (20)
+int hal_ble_serial_send_task(void *parameters){
+    for(;;){
+        // Copy array, let the great compiler decide if this is a good place for it heh
+        uint8_t arr[SPP_MTU];
+        // Sit n wait for any data to come in
+        block_until_n_bytes_fifo(spp_out_fifo, 1);
+        int count = fifo_byte_array_count(spp_out_fifo);
+        // Max transfer size
+        if(count > SPP_MTU)
+            count = SPP_MTU;
+
+        dequeue_bytes_bytearray_fifo(spp_in_fifo, arr, count);
+        esp_ble_gatts_send_indicate(spp_gatts_if, spp_conn_id, spp_handle_table[SPP_IDX_SPP_DATA_NTY_VAL], count, arr, false);
+        os_thread_sleep_ms(30);
+    }
 }
 
 int hal_ble_serial_send(uint8_t *data, size_t len)
 {
-    // Stub
-    return OS_RET_OK;
+    return enqueue_bytes_bytearray_fifo(spp_out_fifo, data, len);
 }
 
 /// Full HRS Database Description - Used to add attributes into the database
@@ -552,9 +570,10 @@ hal_bt_serial_err_t hal_ble_serial_init(void)
 {
 
     // Generate a fifo to store all the date into
-    spp_fifo = create_byte_array_fifo(FIFO_MAX_SIZE);
+    spp_in_fifo = create_byte_array_fifo(FIFO_MAX_SIZE);
+    spp_out_fifo = create_byte_array_fifo(FIFO_MAX_SIZE);
 
-    if(spp_fifo == nullptr){
+    if(spp_in_fifo == nullptr){
         return HAL_BT_SERIAL_BUFFER_OVERFLOW;
     }
     
