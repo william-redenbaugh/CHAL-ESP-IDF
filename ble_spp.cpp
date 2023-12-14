@@ -15,6 +15,7 @@
 
 #include "esp_gap_ble_api.h"
 #include "esp_gatts_api.h"
+#include "esp_gatt_common_api.h"
 #include "esp_bt_defs.h"
 #include "esp_bt_main.h"
 
@@ -176,7 +177,7 @@ static const uint8_t char_prop_read_write = ESP_GATT_CHAR_PROP_BIT_WRITE_NR | ES
 static const uint8_t char_prop_read_write_notify = ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_WRITE_NR | ESP_GATT_CHAR_PROP_BIT_NOTIFY;
 #endif
 
-static uint16_t spp_mtu_size = 23;
+static uint16_t spp_mtu_size = 512;
 static uint16_t spp_conn_id = 0xffff;
 static esp_gatt_if_t spp_gatts_if = 0xff;
 QueueHandle_t spp_uart_queue = NULL;
@@ -621,6 +622,10 @@ hal_bt_serial_err_t hal_ble_serial_init(void)
     }
 
     esp_ble_gatts_app_register(ESP_SPP_APP_ID);
-    
+
+    // Want to increase bandwidth for BLE heh
+    if ((ret = esp_ble_gatt_set_local_mtu(spp_mtu_size)) != ESP_OK){
+        print("Failed to set the local mtu, %s", __func__, esp_err_to_name(ret));
+    }
     return HAL_BT_SERIAL_OK;
 }
