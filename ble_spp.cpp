@@ -177,7 +177,7 @@ static const uint8_t char_prop_read_write = ESP_GATT_CHAR_PROP_BIT_WRITE_NR | ES
 static const uint8_t char_prop_read_write_notify = ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_WRITE_NR | ESP_GATT_CHAR_PROP_BIT_NOTIFY;
 #endif
 
-static uint16_t spp_mtu_size = 512;
+static uint16_t spp_mtu_size = 517;
 static uint16_t spp_conn_id = 0xffff;
 static esp_gatt_if_t spp_gatts_if = 0xff;
 QueueHandle_t spp_uart_queue = NULL;
@@ -225,6 +225,8 @@ static void bt_spp_recv_cb(uint8_t *data, size_t len)
     if(ret != OS_RET_OK){
         Serial.printf("\nFailed to enqueue data into the bytearray for the SPP rx driver %d\n", ret);
     }
+
+    portYIELD();
 }
 
 int hal_ble_serial_receive(uint8_t *data, size_t len)
@@ -235,7 +237,7 @@ int hal_ble_serial_receive(uint8_t *data, size_t len)
 int hal_ble_serial_receive_block(uint8_t *data, size_t len)
 {
     int ret = block_until_n_bytes_fifo(spp_in_fifo, len);
-
+    
     Serial.printf("\nhmm: %d\n", ret);
     int n = dequeue_bytes_bytearray_fifo(spp_in_fifo, data, len);
     
