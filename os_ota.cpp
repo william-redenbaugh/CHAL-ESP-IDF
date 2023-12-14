@@ -59,3 +59,7 @@ int os_ota_halt_mark_invalid(void){
     // No need to set next boot partition if we failed to get the OTA
     return esp_to_os(err);
 }
+
+void os_ota_mark_functional_boot(void){
+    esp_ota_mark_app_valid_cancel_rollback();
+}
