@@ -21,7 +21,7 @@
 
 #define FIFO_MAX_SIZE (4096)
 
-#define BLE_SPP_DEBUG
+// #define BLE_SPP_DEBUG
 
 #ifdef BLE_SPP_DEBUG
 #define ble_spp_printf(e, ...) Serial.printf(e)
@@ -238,7 +238,7 @@ int hal_ble_serial_receive_block(uint8_t *data, size_t len)
 {
     int ret = block_until_n_bytes_fifo(spp_in_fifo, len);
     
-    Serial.printf("\nhmm: %d\n", ret);
+    //Serial.printf("\nhmm: %d\n", ret);
     int n = dequeue_bytes_bytearray_fifo(spp_in_fifo, data, len);
     
     if(n != len){
@@ -254,21 +254,19 @@ int hal_ble_flush_serial(void){
     return 0;
 }
 
-#define SPP_MTU (20)
 int hal_ble_serial_send_task(void *parameters){
     for(;;){
         // Copy array, let the great compiler decide if this is a good place for it heh
-        uint8_t arr[SPP_MTU];
+        uint8_t arr[spp_mtu_size];
         // Sit n wait for any data to come in
-        block_until_n_bytes_fifo(spp_out_fifo, 1);
+        int ret = block_until_n_bytes_fifo(spp_out_fifo, 1);
         int count = fifo_byte_array_count(spp_out_fifo);
         // Max transfer size
-        if(count > SPP_MTU)
-            count = SPP_MTU;
+        if(count > spp_mtu_size)
+            count = spp_mtu_size;
 
-        dequeue_bytes_bytearray_fifo(spp_in_fifo, arr, count);
+        dequeue_bytes_bytearray_fifo(spp_out_fifo, arr, count);
         esp_ble_gatts_send_indicate(spp_gatts_if, spp_conn_id, spp_handle_table[SPP_IDX_SPP_DATA_NTY_VAL], count, arr, false);
-        os_thread_sleep_ms(30);
     }
 }
 
@@ -344,8 +342,8 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
     esp_ble_gatts_cb_param_t *p_data = (esp_ble_gatts_cb_param_t *)param;
     uint8_t res = 0xff;
 
-    ESP_LOGI(GATTS_TABLE_TAG, "event = %x", event);
-    Serial.printf("event = %x\n", event);
+    //ESP_LOGI(GATTS_TABLE_TAG, "event = %x", event);
+    //Serial.printf("event = %x\n", event);
     switch (event)
     {
     case ESP_GATTS_REG_EVT:
@@ -515,8 +513,6 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
 {
     esp_err_t err;
-    print("GAP_EVT, event %d", event);
-    Serial.printf("GAP_EVT, event %d", event);
     switch (event)
     {
     case ESP_GAP_BLE_ADV_DATA_RAW_SET_COMPLETE_EVT:
@@ -629,5 +625,12 @@ hal_bt_serial_err_t hal_ble_serial_init(void)
     if ((ret = esp_ble_gatt_set_local_mtu(spp_mtu_size)) != ESP_OK){
         print("Failed to set the local mtu, %s", __func__, esp_err_to_name(ret));
     }
+
+    xTaskCreate((TaskFunction_t)hal_ble_serial_send_task, 
+    "SPP BLE RX Task", 
+    4096, 
+    NULL, 
+    0, 
+    NULL);
     return HAL_BT_SERIAL_OK;
 }
