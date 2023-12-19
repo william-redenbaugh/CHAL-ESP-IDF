@@ -238,6 +238,27 @@ int hal_ble_serial_receive_block(uint8_t *data, size_t len)
 {
     int ret = block_until_n_bytes_fifo(spp_in_fifo, len);
     
+    if(ret != OS_RET_OK){
+        return ret;
+    }
+    //Serial.printf("\nhmm: %d\n", ret);
+    int n = dequeue_bytes_bytearray_fifo(spp_in_fifo, data, len);
+    
+    if(n != len){
+        ble_spp_printf("\nMismatched data rx sise %d, %d\n", n, len);
+        hal_ble_flush_serial();
+        return OS_RET_INVALID_PARAM;
+    }
+    return 0;
+}
+
+int hal_ble_serial_receive_block_timeout(uint8_t *data, size_t len, uint32_t timeout_ms){
+    
+    int ret = block_until_n_bytes_fifo_timeout(spp_in_fifo, len, timeout_ms);
+    if(ret != OS_RET_OK){
+        return ret;
+    }
+
     //Serial.printf("\nhmm: %d\n", ret);
     int n = dequeue_bytes_bytearray_fifo(spp_in_fifo, data, len);
     
