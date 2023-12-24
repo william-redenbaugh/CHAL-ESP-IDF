@@ -229,4 +229,8 @@ int _rmt_os_led_strip_show(os_led_strip_t *strip)
     return OS_RET_OK;
 }
 
+int _rmt_dma_os_led_strip_set_brightness(os_led_strip_t *strip, uint8_t brightness){
+
+    return OS_RET_Ok;
+}
 #endif
