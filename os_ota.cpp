@@ -52,7 +52,7 @@ int os_ota_halt_mark_invalid(void){
     if(active_ota == false)
         return OS_RET_NOT_INITIALIZED;
 
-    esp_err_t err = esp_ota_end(ota_handle);
+    esp_err_t err = esp_ota_abort(ota_handle);
 
     active_ota = false;
 
