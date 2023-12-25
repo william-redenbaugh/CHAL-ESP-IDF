@@ -11,6 +11,7 @@
 #include "lwip/err.h"
 #include "lwip/sys.h"
 
+#ifdef OS_WIFI
 
 static ap_station_cb ap_cb = NULL;
 
@@ -111,3 +112,4 @@ int os_start_local_ap(char *ssid, char *password, int max_clients, uint16_t chan
 
     return OS_RET_OK;
 }
+#endif

@@ -1,4 +1,6 @@
 #include "global_includes.h"
+
+#ifdef OS_WIFI
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -312,3 +314,4 @@ int os_wifi_connect_sta(char *ssid, char *password)
 
     return OS_RET_OK;
 }
+#endif

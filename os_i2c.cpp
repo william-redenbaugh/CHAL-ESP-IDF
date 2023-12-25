@@ -58,20 +58,20 @@ int os_i2c_begin(os_i2c_t *i2c, int fd, int speed, os_i2c_gpio_t *gpio_conf)
 
 int os_i2c_end(os_i2c_t *i2c)
 {
-    i2c_driver_delete(i2c->fd);
+    i2c_driver_delete((i2c_port_t)i2c->fd);
     return OS_RET_OK;
 }
 
 int os_i2c_setbus(os_i2c_t *i2c, uint32_t freq_hz)
 {
     i2c_config_t conf;
-    esp_err_t ret = i2c_param_config(i2c->fd, &conf);
+    esp_err_t ret = i2c_param_config((i2c_port_t)i2c->fd, &conf);
     if (ret != ESP_OK)
     {
         return OS_RET_INT_ERR; // Configuration error
     }
     conf.master.clk_speed = freq_hz;
-    ret = i2c_param_config(i2c->fd, &conf);
+    ret = i2c_param_config((i2c_port_t)i2c->fd, &conf);
     if (ret != ESP_OK)
     {
         return OS_RET_INT_ERR; // Configuration error
@@ -86,7 +86,7 @@ int os_i2c_send(os_i2c_t *i2c, uint8_t addr, uint8_t *buf, size_t size)
     i2c_master_write_byte(cmd, (addr << 1) | I2C_MASTER_WRITE, true);
     i2c_master_write(cmd, buf, size, true);
     i2c_master_stop(cmd);
-    esp_err_t ret = i2c_master_cmd_begin(i2c->fd, cmd, 1000 / portTICK_RATE_MS);
+    esp_err_t ret = i2c_master_cmd_begin((i2c_port_t)i2c->fd, cmd, 1000 / portTICK_PERIOD_MS);
     i2c_cmd_link_delete(cmd);
     return (ret == ESP_OK) ? OS_RET_OK : OS_RET_IO_ERROR;
 }
@@ -102,7 +102,7 @@ int os_i2c_receive(os_i2c_t *i2c, uint8_t addr, uint8_t *buf, size_t size)
     }
     i2c_master_read_byte(cmd, buf + size - 1, I2C_MASTER_NACK);
     i2c_master_stop(cmd);
-    esp_err_t ret = i2c_master_cmd_begin(i2c->fd, cmd, 1000 / portTICK_RATE_MS);
+    esp_err_t ret = i2c_master_cmd_begin((i2c_port_t)i2c->fd, cmd, 1000 / portTICK_PERIOD_MS);
     i2c_cmd_link_delete(cmd);
     return (ret == ESP_OK) ? OS_RET_OK : OS_RET_IO_ERROR;
 }

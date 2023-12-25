@@ -11,6 +11,8 @@
 #include "freertos/task.h"
 #include "esp_log.h"
 #include "esp_bt.h"
+
+#ifdef BL_SPP
 #include "esp_bt_main.h"
 #include "esp_gap_bt_api.h"
 #include "esp_bt_device.h"
@@ -264,3 +266,4 @@ hal_bt_serial_err_t hal_bluetooth_serial_init(void)
 
     return HAL_BT_SERIAL_OK;
 }
+#endif
