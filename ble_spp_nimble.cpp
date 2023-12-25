@@ -36,8 +36,9 @@
 #endif
 
 #define SPP_DATA_MAX_LEN (512)
-static int
-ble_spp_server_gap_event(struct ble_gap_event *event, void *arg);
+static int ble_spp_server_gap_event(struct ble_gap_event *event, void *arg);
+static int  ble_svc_gatt_handler(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt *ctxt, void *arg);
+
 static bool conn_handle_subs[CONFIG_BT_NIMBLE_MAX_CONNECTIONS + 1];
 static uint8_t own_addr_type;
 int gatt_svr_register(void);
@@ -53,6 +54,38 @@ int spp_mtu_size = 512;
 #define BLE_SVC_SPP_UUID16                                  0xABF0
 /* 16 Bit SPP Service Characteristic UUID */
 #define BLE_SVC_SPP_CHR_UUID16                              0xABF1
+
+ble_uuid16_t svc_spp_uuid16[] = {
+    {
+        .u = {                          
+        .type = BLE_UUID_TYPE_16,   
+    },                              
+    .value = (BLE_SVC_SPP_UUID16),
+    },
+};
+
+ble_uuid16_t chr_spp_uuid16[] = {
+    {
+        .u = {                          
+        .type = BLE_UUID_TYPE_16,   
+    },                              
+    .value = (BLE_SVC_SPP_CHR_UUID16),
+    },
+};
+
+
+
+struct ble_gatt_chr_def characteristics_spp[] = 
+        { {
+                /* Support SPP service */
+                .uuid = (ble_uuid_t *)&chr_spp_uuid16,
+                .access_cb = ble_svc_gatt_handler,
+                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY,
+                .val_handle = &ble_spp_svc_gatt_read_val_handle,
+            }, {
+                0, /* No more characteristics */
+            }
+        };
 
 static void bt_spp_recv_cb(uint8_t *data, size_t len)
 {
@@ -183,9 +216,8 @@ ble_spp_server_advertise(void)
     fields.name_len = strlen(name);
     fields.name_is_complete = 1;
 
-    fields.uuids16 = (ble_uuid16_t[]) {
-        BLE_UUID16_INIT(BLE_SVC_SPP_UUID16)
-    };
+    fields.uuids16 = svc_spp_uuid16;
+
     fields.num_uuids16 = 1;
     fields.uuids16_is_complete = 1;
 
@@ -363,18 +395,8 @@ static const struct ble_gatt_svc_def new_ble_svc_gatt_defs[] = {
     {
         /*** Service: SPP */
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
-        .uuid = BLE_UUID16_DECLARE(BLE_SVC_SPP_UUID16),
-        .characteristics = (struct ble_gatt_chr_def[])
-        { {
-                /* Support SPP service */
-                .uuid = BLE_UUID16_DECLARE(BLE_SVC_SPP_CHR_UUID16),
-                .access_cb = ble_svc_gatt_handler,
-                .val_handle = &ble_spp_svc_gatt_read_val_handle,
-                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY,
-            }, {
-                0, /* No more characteristics */
-            }
-        },
+        .uuid = (ble_uuid_t *)svc_spp_uuid16,
+        .characteristics = characteristics_spp
     },
     {
         0, /* No more services. */
@@ -508,7 +530,7 @@ hal_bt_serial_err_t hal_ble_serial_init(void)
     assert(rc == 0);
 
     /* XXX Need to have template for store */
-    ble_store_config_init();
+    //ble_store_config_init();
 
     nimble_port_freertos_init(ble_spp_server_host_task);
     
