@@ -51,7 +51,7 @@ typedef struct _os_led_strip_t
 // 10MHz resolution, 1 tick = 0.1us (led strip needs a high resolution)
 #define RMT_LED_STRIP_RESOLUTION_HZ 10000000 
 
-_os_led_strip_t* _rmt_os_led_strip_init(int bus, int gpio, uint32_t numpixels)
+_os_led_strip_t *_rmt_os_led_strip_init(int bus, int gpio, uint32_t numpixels)
 {
     
     _os_led_strip_t *strip = (_os_led_strip_t *)malloc(sizeof(_os_led_strip_t));
@@ -61,13 +61,13 @@ _os_led_strip_t* _rmt_os_led_strip_init(int bus, int gpio, uint32_t numpixels)
         return NULL;
     }
 
-    // Set all parameters to zero otherwise
-    //memset(strip->pixels, 0, sizeof(_os_led_strip_t));
+    Serial.printf("Initializing the RMT peripheral!\n");
     // Allocate data for the pixels
-    //strip->pixels = (uint8_t*)malloc(sizeof(uint8_t) * numpixels * 3);
+    strip->pixels = (uint8_t*)malloc(sizeof(uint8_t) * numpixels * 3);
     // Clear the strips!
-    //memset(strip->pixels, 0, sizeof(uint8_t) * 3 * numpixels);
-    /*
+    memset(strip->pixels, 0, sizeof(uint8_t) * 3 * numpixels);
+
+    Serial.printf("GPIO Value %d\n", gpio);
     strip->tx_chan_config = {
         .gpio_num = (gpio_num_t)gpio,
         .clk_src = RMT_CLK_SRC_DEFAULT, // select source clock
@@ -76,7 +76,7 @@ _os_led_strip_t* _rmt_os_led_strip_init(int bus, int gpio, uint32_t numpixels)
         .trans_queue_depth = 4, // set the number of transactions that can be pending in the background
     };
 
-    //ESP_ERROR_CHECK(rmt_new_tx_channel(&strip->tx_chan_config, &strip->led_chan));
+    ESP_ERROR_CHECK(rmt_new_tx_channel(&strip->tx_chan_config, &strip->led_chan));
 
     Serial.printf("Install led strip encoder\n");
     strip->led_encoder = NULL;
@@ -84,14 +84,14 @@ _os_led_strip_t* _rmt_os_led_strip_init(int bus, int gpio, uint32_t numpixels)
     strip->encoder_config = {
         .resolution = RMT_LED_STRIP_RESOLUTION_HZ,
     };
-    //ESP_ERROR_CHECK(rmt_new_led_strip_encoder(&strip->encoder_config, &strip->led_encoder));
+    ESP_ERROR_CHECK(rmt_new_led_strip_encoder(&strip->encoder_config, &strip->led_encoder));
 
     Serial.printf("Enable RMT TX channel\n");
-    //ESP_ERROR_CHECK(rmt_enable(strip->led_chan));
+    ESP_ERROR_CHECK(rmt_enable(strip->led_chan));
     strip->tx_config = {
         .loop_count = 0, // no transfer loop
     };
-    */
+    
     return strip;
 }
 
@@ -122,11 +122,13 @@ int _rmt_os_led_strip_show(_os_led_strip_t *strip)
 {
 
     // Send out the data through the RMT driver!
-    //rmt_transmit(strip->led_chan, 
-    //    strip->led_encoder, 
-    //    strip->pixels, 
-    //    strip->numpixel * 3,
-    //    &strip->tx_config);
+    rmt_transmit(strip->led_chan, 
+        strip->led_encoder, 
+        strip->pixels, 
+        strip->numpixel * 3,
+        &strip->tx_config);
+
+    //rmt_tx_wait_all_done(strip->led_chan, -1);
 
     if (strip == NULL)
     {
