@@ -91,7 +91,7 @@ struct ble_gatt_chr_def characteristics_spp[] =
          /* Support SPP service */
          .uuid = (ble_uuid_t *)&chr_spp_uuid16,
          .access_cb = ble_svc_gatt_recv_handler,
-         .flags = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY,
+         .flags = BLE_GATT_CHR_F_WRITE_NO_RSP | BLE_GATT_CHR_F_NOTIFY,
          .val_handle = &ble_spp_svc_gatt_read_val_handle,
      },
      {
@@ -308,7 +308,7 @@ ble_spp_server_gap_event(struct ble_gap_event *event, void *arg)
         }
         return 0;
     case BLE_GAP_EVENT_DISCONNECT:
-        Serial.printf("disconnect; reason=%d ", event->disconnect.reason);
+        Serial.printf("disconnect; reason=%x ", event->disconnect.reason);
         ble_spp_server_print_conn_desc(&event->disconnect.conn);
         Serial.printf("\n");
 
@@ -431,7 +431,7 @@ static int ble_svc_gatt_recv_handler(uint16_t conn_handle, uint16_t attr_handle,
             {
                 Serial.printf("Receved data %d Conn %d\n", len, conn_handle);
                 // Put the data into the bytearray to get consumed later!
-                enqueue_bytes_bytearray_fifo(spp_in_fifo, copy_buff, len);
+                enqueue_bytes_bytearray_fifo(spp_in_fifo, copy_buff, copied_len);
                 return 0;
             }
             else
@@ -481,7 +481,6 @@ int hal_ble_serial_send_task(void *parameters)
                 int rc = ble_gatts_notify_custom(i, ble_spp_svc_gatt_read_val_handle_notify, txom);
             }
         }
-        // esp_ble_gatts_send_indicate(spp_gatts_if, spp_conn_id, spp_handle_table[SPP_IDX_SPP_DATA_NTY_VAL], count, arr, false);
     }
 }
 
