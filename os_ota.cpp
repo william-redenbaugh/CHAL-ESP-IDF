@@ -11,6 +11,7 @@ int os_ota_begin(void)
     current_partition = (esp_partition_t *)esp_ota_get_next_update_partition(NULL);
     if (current_partition == NULL)
     {
+        Serial.printf("Failed to get next partition\n");
         return OS_RET_INT_ERR;
     }
 

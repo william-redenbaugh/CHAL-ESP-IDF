@@ -11,7 +11,6 @@
 #include "nvs_flash.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "esp_bt.h"
 #include "driver/uart.h"
 #include "string.h"
 
@@ -429,8 +428,8 @@ static int ble_svc_gatt_recv_handler(uint16_t conn_handle, uint16_t attr_handle,
             int rc = ble_hs_mbuf_to_flat(ctxt->om, copy_buff, len, &copied_len);
             if (rc == 0)
             {
-                //Serial.printf("Receved data %d Conn %d\n", len, conn_handle);
-                // Put the data into the bytearray to get consumed later!
+                // Serial.printf("Receved data %d Conn %d\n", len, conn_handle);
+                //  Put the data into the bytearray to get consumed later!
                 enqueue_bytes_bytearray_fifo(spp_in_fifo, copy_buff, copied_len);
                 return 0;
             }
@@ -471,7 +470,7 @@ int hal_ble_serial_send_task(void *parameters)
         if (count > spp_mtu_size)
             count = spp_mtu_size;
 
-        //Serial.printf("Sending data out!");
+        // Serial.printf("Sending data out!");
         dequeue_bytes_bytearray_fifo(spp_out_fifo, arr, count);
         for (int i = 0; i <= CONFIG_BT_NIMBLE_MAX_CONNECTIONS; i++)
         {
