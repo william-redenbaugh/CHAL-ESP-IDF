@@ -1,5 +1,6 @@
 // hal_bluetooth_serial.c
 #include "global_includes.h"
+#ifdef BLE_BLUEDROID_OS
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
@@ -655,3 +656,4 @@ hal_bt_serial_err_t hal_ble_serial_init(void)
     NULL);
     return HAL_BT_SERIAL_OK;
 }
+#endif
