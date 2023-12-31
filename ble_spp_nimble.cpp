@@ -90,14 +90,14 @@ struct ble_gatt_chr_def characteristics_spp[] =
          /* Support SPP service */
          .uuid = (ble_uuid_t *)&chr_spp_uuid16,
          .access_cb = ble_svc_gatt_recv_handler,
-         .flags = BLE_GATT_CHR_F_WRITE_NO_RSP | BLE_GATT_CHR_F_NOTIFY,
+         .flags = BLE_GATT_CHR_F_WRITE_NO_RSP | BLE_GATT_CHR_PROP_WRITE | BLE_GATT_CHR_PROP_WRITE_NO_RSP | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY | BLE_GATT_CHR_PROP_NOTIFY,
          .val_handle = &ble_spp_svc_gatt_read_val_handle,
      },
      {
          /* Support SPP service */
          .uuid = (ble_uuid_t *)&chr_spp_notify_uuid16,
          .access_cb = ble_svc_gatt_handler,
-         .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
+         .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_PROP_NOTIFY | BLE_GATT_CHR_F_NOTIFY,
          .val_handle = &ble_spp_svc_gatt_read_val_handle_notify,
      },
      {
@@ -439,7 +439,6 @@ static int ble_svc_gatt_recv_handler(uint16_t conn_handle, uint16_t attr_handle,
         }
     }
     break;
-
     default:
         Serial.printf("\nDefault Callback");
         break;
