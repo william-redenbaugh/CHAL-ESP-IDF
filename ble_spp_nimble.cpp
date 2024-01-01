@@ -49,6 +49,7 @@ static int handle = -1;
 static byte_array_fifo *spp_in_fifo;
 static byte_array_fifo *spp_out_fifo;
 int spp_mtu_size = 512;
+static ble_connected_cb_t bluetooth_pair_cb = NULL;
 
 /* 16 Bit SPP Service UUID */
 #define BLE_SVC_SPP_UUID16 0xABF0
@@ -305,6 +306,9 @@ ble_spp_server_gap_event(struct ble_gap_event *event, void *arg)
             /* Connection failed or if multiple connection allowed; resume advertising. */
             ble_spp_server_advertise();
         }
+        if(bluetooth_pair_cb){
+            bluetooth_pair_cb(0);
+        }
         return 0;
     case BLE_GAP_EVENT_DISCONNECT:
         Serial.printf("disconnect; reason=%x ", event->disconnect.reason);
@@ -542,9 +546,9 @@ int gatt_svr_init(void)
     return 0;
 }
 
-hal_bt_serial_err_t hal_ble_serial_init(void)
+hal_bt_serial_err_t hal_ble_serial_init(ble_connected_cb_t cb)
 {
-
+    bluetooth_pair_cb = cb;
     // Generate a fifo to store all the date into
     spp_in_fifo = create_byte_array_fifo(FIFO_MAX_SIZE);
     spp_out_fifo = create_byte_array_fifo(FIFO_MAX_SIZE);
