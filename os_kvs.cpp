@@ -21,45 +21,49 @@ int kv_store_init(void){
     }
 
     err = nvs_open(my_handle_str, NVS_READWRITE, &my_handle);
+
+
+    Serial.printf("NVS Ret code %d\n", err);
+    ret = esp_to_os(err);
     return ret;
 }
 
-int kv_store_uninit(void){
+int os_kv_store_uninit(void){
     nvs_close(my_handle);
     return OS_RET_OK;
 }
 
-int kv_put_uint32(char* key, uint32_t value) {
+int os_kv_put_uint32(char* key, uint32_t value) {
     esp_err_t err = nvs_set_u32(my_handle, key, value);
     return esp_to_os(err);
 }
 
-int kv_put_uint64(char* key, uint64_t value) {
+int os_kv_put_uint64(char* key, uint64_t value) {
     esp_err_t err = nvs_set_u64(my_handle, key, value);
     return esp_to_os(err);
 }
 
-int kv_put_string(char* key, char* value) {
+int os_kv_put_string(char* key, char* value) {
     esp_err_t err = nvs_set_str(my_handle, key, value);
     return esp_to_os(err); 
 }
 
-int kv_get_uint32(char* key, uint32_t* value) {
+int os_kv_get_uint32(char* key, uint32_t* value) {
     esp_err_t err = nvs_get_u32(my_handle, key, value);
     return esp_to_os(err); 
 }
 
-int kv_get_uint64(char* key, uint64_t* value) {
+int os_kv_get_uint64(char* key, uint64_t* value) {
     esp_err_t err = nvs_get_u64(my_handle, key, value);
     return esp_to_os(err); 
 }
 
-int kv_get_string(char* key, char* value, size_t *len) {
+int os_kv_get_string(char* key, char* value, size_t *len) {
     esp_err_t err = nvs_get_str(my_handle, key, value, len);
     return esp_to_os(err); 
 }
 
-int kv_remove(char* key) {
+int os_kv_remove(char* key) {
     esp_err_t err = nvs_erase_key(my_handle, key);
     return esp_to_os(err); 
 }

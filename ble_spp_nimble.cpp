@@ -50,6 +50,7 @@ static byte_array_fifo *spp_in_fifo;
 static byte_array_fifo *spp_out_fifo;
 int spp_mtu_size = 512;
 static ble_connected_cb_t bluetooth_pair_cb = NULL;
+static char adv_name[13] = "LightsLights";
 
 /* 16 Bit SPP Service UUID */
 #define BLE_SVC_SPP_UUID16 0xABF0
@@ -400,8 +401,7 @@ void ble_spp_server_host_task(void *param)
     Serial.printf("BLE Host Task Started\n");
 
     /* Set the default device name. */
-    char name[25] = "RaveLights";
-    int rc = ble_svc_gap_device_name_set(name);
+    int rc = ble_svc_gap_device_name_set(adv_name);
     assert(rc == 0);
 
     /* This function will return only when nimble_port_stop() is executed */
@@ -546,8 +546,11 @@ int gatt_svr_init(void)
     return 0;
 }
 
-hal_bt_serial_err_t hal_ble_serial_init(ble_connected_cb_t cb)
+hal_bt_serial_err_t hal_ble_serial_init(ble_connected_cb_t cb, char *name, size_t name_len)
 {
+    for(int n = 0; n < name_len; n++){
+        adv_name[n] = name[n];
+    }
     bluetooth_pair_cb = cb;
     // Generate a fifo to store all the date into
     spp_in_fifo = create_byte_array_fifo(FIFO_MAX_SIZE);

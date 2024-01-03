@@ -4,7 +4,7 @@
 
 uint64_t os_fetch_unique_id(void){
     uint64_t value;
-    esp_read_mac((uint8_t*)&value, ESP_MAC_IEEE802154);
+    esp_read_mac((uint8_t*)&value, ESP_MAC_BASE);
 }
 
 void burn_fuse(void){
