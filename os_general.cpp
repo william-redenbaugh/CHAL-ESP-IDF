@@ -1,5 +1,6 @@
 #include "chal_struct_definitions.h"
 #include "global_includes.h"
+#include "nvs.h"
 
 int esp_to_os(esp_err_t err)
 {
@@ -33,6 +34,9 @@ int esp_to_os(esp_err_t err)
     case ESP_ERR_INVALID_RESPONSE:
         return OS_RET_INT_ERR;
         break;
+    case ESP_ERR_NVS_NOT_FOUND:
+        return OS_RET_NO_FLASH_KEY;
+
     default:
         return OS_RET_INT_ERR;
     }

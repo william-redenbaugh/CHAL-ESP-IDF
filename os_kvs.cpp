@@ -9,6 +9,8 @@ int kv_store_init(void){
     // Initialize NVS
     esp_err_t err = nvs_flash_init();
     int ret = esp_to_os(err);
+    Serial.printf("KV Store initialized: %d\n", ret);
+
     if(ret != OS_RET_OK){
         return ret;
     }
@@ -18,10 +20,10 @@ int kv_store_init(void){
         // Retry nvs_flash_init
         ESP_ERROR_CHECK(nvs_flash_erase());
         err = nvs_flash_init();
+        Serial.printf("New KVS version and no free pages found\n");
     }
 
     err = nvs_open(my_handle_str, NVS_READWRITE, &my_handle);
-
 
     Serial.printf("NVS Ret code %d\n", err);
     ret = esp_to_os(err);
@@ -43,8 +45,8 @@ int os_kv_put_uint64(char* key, uint64_t value) {
     return esp_to_os(err);
 }
 
-int os_kv_put_string(char* key, char* value) {
-    esp_err_t err = nvs_set_str(my_handle, key, value);
+int os_kv_put_string(char* key, char* value, size_t len) {
+    esp_err_t err = nvs_set_blob(my_handle, key, value, len);
     return esp_to_os(err); 
 }
 
@@ -59,7 +61,7 @@ int os_kv_get_uint64(char* key, uint64_t* value) {
 }
 
 int os_kv_get_string(char* key, char* value, size_t *len) {
-    esp_err_t err = nvs_get_str(my_handle, key, value, len);
+    esp_err_t err = nvs_get_blob(my_handle, key, value, len);
     return esp_to_os(err); 
 }
 
