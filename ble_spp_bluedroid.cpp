@@ -25,9 +25,9 @@
 // #define BLE_SPP_DEBUG
 
 #ifdef BLE_SPP_DEBUG
-#define ble_spp_printf(e, ...) Serial.printf(e)
+#define ble_spp_printf(...) Serial.printf(__VA_ARGS__)
 #else
-#define ble_spp_printf(e, ...) (void)e
+#define ble_spp_printf(...) ((void)0)
 #endif
 
 #define SPP_DATA_MAX_LEN (512)

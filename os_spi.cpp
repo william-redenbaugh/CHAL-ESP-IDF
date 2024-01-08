@@ -2,14 +2,16 @@
 #include "driver/spi_master.h"
 #include <esp_heap_caps.h>
 
+#ifdef OS_SPI_MODULE
+
 #define SPI_DEBUGGING
 #ifdef SPI_DEBUGGING
-#define SPI_DEBUG(e, ...)                  \
+#define SPI_DEBUG(...)                  \
     os_printf("[SPI MATRIX DEBUGGING]: "); \
-    os_printf(e);                          \
+    os_printf(__VA_ARGS__);                          \
     os_printf("\n")
 #else
-#define SPI_DEBUG(e, ...) (void)(e)
+#define SPI_DEBUG(e, ...) (void(0))
 #endif
 
 /**
@@ -201,7 +203,7 @@ int os_spi_couple_device(os_device_init_params init_params, os_device_t *device)
 
 int os_spi_decouple_device(os_device_t *device)
 {
-    if (device == NULL | device->bus == NULL | device->device == NULL)
+    if ((device == NULL) | (device->bus == NULL) | (device->device == NULL))
     {
         return OS_RET_INVALID_PARAM;
     }
@@ -246,7 +248,7 @@ int os_spi_end(os_spi_t *spi)
 
 int os_spi_transfer(os_device_t *device, uint8_t *rx, uint8_t *tx, size_t size)
 {
-    if (device == NULL | device->bus == NULL | device->device == NULL)
+    if ((device == NULL) | (device->bus == NULL) | (device->device == NULL))
     {
         return OS_RET_NULL_PTR;
     }
@@ -281,7 +283,7 @@ int os_spi_transfer(os_device_t *device, uint8_t *rx, uint8_t *tx, size_t size)
 
 int os_spi_send(os_device_t *device, uint8_t *buf, size_t size)
 {
-    if (device == NULL | device->bus == NULL | device->device == NULL)
+    if ((device == NULL) | (device->bus == NULL) | (device->device == NULL))
     {
         return OS_RET_NULL_PTR;
     }
@@ -313,7 +315,7 @@ int os_spi_send(os_device_t *device, uint8_t *buf, size_t size)
 
 int os_spi_recieve(os_device_t *device, uint8_t *buf, size_t size)
 {
-    if (device == NULL | device->bus == NULL | device->device == NULL)
+    if ((device == NULL) | (device->bus == NULL) | (device->device == NULL))
     {
         return OS_RET_NULL_PTR;
     }
@@ -346,3 +348,4 @@ int os_spi_recieve(os_device_t *device, uint8_t *buf, size_t size)
     memcpy(buf, spi_device->rx_buf, size);
     return err;
 }
+#endif

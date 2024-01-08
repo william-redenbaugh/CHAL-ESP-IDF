@@ -64,7 +64,7 @@ int os_i2c_end(os_i2c_t *i2c)
 
 int os_i2c_setbus(os_i2c_t *i2c, uint32_t freq_hz)
 {
-    i2c_config_t conf;
+    i2c_config_t conf = i2c_config_t();
     esp_err_t ret = i2c_param_config((i2c_port_t)i2c->fd, &conf);
     if (ret != ESP_OK)
     {

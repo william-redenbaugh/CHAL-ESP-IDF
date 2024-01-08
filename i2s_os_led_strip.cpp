@@ -43,16 +43,16 @@ _os_led_strip_t *_i2s_dma_os_led_strip_init(int bus, int gpio, uint32_t numpixel
     }
 
     // Generate I2S config
-    i2s_config_t i2s_config = {
-        .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
-        .sample_rate = SAMPLE_RATE,
-        .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
-        .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
-        .communication_format = i2s_comm_format_t(I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_MSB),
-        .intr_alloc_flags = 0,
-        .dma_buf_count = 4,
-        .use_apll = false,
-    };
+    i2s_config_t i2s_config = i2s_config_t();
+
+    i2s_config.mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX);
+    i2s_config.sample_rate = SAMPLE_RATE;
+    i2s_config.bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT;
+    i2s_config.channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT;
+    i2s_config.communication_format = i2s_comm_format_t(I2S_COMM_FORMAT_STAND_I2S);
+    i2s_config.intr_alloc_flags = 0;
+    i2s_config.dma_buf_count = 4;
+    i2s_config.use_apll = false;
 
     i2s_pin_config_t pin_config = {.bck_io_num = -1,
                                    .ws_io_num = -1,
@@ -76,7 +76,7 @@ _os_led_strip_t *_i2s_dma_os_led_strip_init(int bus, int gpio, uint32_t numpixel
     if (strip->pixels == NULL)
     {
         printf("Couldn't allocate DMA buffer for LED Strip");
-        free((void *)strip);
+        delete strip;
         return NULL;
     }
 
