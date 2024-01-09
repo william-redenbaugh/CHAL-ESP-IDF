@@ -11,7 +11,7 @@ int os_ota_begin(void)
     current_partition = (esp_partition_t *)esp_ota_get_next_update_partition(NULL);
     if (current_partition == NULL)
     {
-        Serial.printf("Failed to get next partition\n");
+        os_printf("Failed to get next partition\n");
         return OS_RET_INT_ERR;
     }
 
@@ -32,7 +32,7 @@ int os_ota_write(uint8_t *data, int size)
 {
     if (active_ota == false)
     {
-        Serial.printf("OTA is not active!\n");
+        os_printf("OTA is not active!\n");
         return OS_RET_NOT_INITIALIZED;
     }
     esp_err_t err = esp_ota_write(ota_handle, data, size);

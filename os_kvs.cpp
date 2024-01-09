@@ -9,7 +9,7 @@ int kv_store_init(void){
     // Initialize NVS
     esp_err_t err = nvs_flash_init();
     int ret = esp_to_os(err);
-    Serial.printf("KV Store initialized: %d\n", ret);
+    os_printf("KV Store initialized: %d\n", ret);
 
     if(ret != OS_RET_OK){
         return ret;
@@ -20,12 +20,12 @@ int kv_store_init(void){
         // Retry nvs_flash_init
         ESP_ERROR_CHECK(nvs_flash_erase());
         err = nvs_flash_init();
-        Serial.printf("New KVS version and no free pages found\n");
+        os_printf("New KVS version and no free pages found\n");
     }
 
     err = nvs_open(my_handle_str, NVS_READWRITE, &my_handle);
 
-    Serial.printf("NVS Ret code %d\n", err);
+    os_printf("NVS Ret code %d\n", err);
     ret = esp_to_os(err);
     return ret;
 }

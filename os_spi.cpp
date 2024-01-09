@@ -136,7 +136,7 @@ int os_spi_initialize(os_spi_t *spi, int fd, os_spi_gpio_t *gpio)
     if (e != ESP_OK)
     {
         SPI_DEBUG("ESPIDF FAILED TO INITIALIZE");
-        Serial.printf("Failed to initialize spi bus : %d\n", err);
+        os_printf("Failed to initialize spi bus : %d\n", err);
         return OS_RET_INT_ERR;
     }
 
@@ -195,7 +195,7 @@ int os_spi_couple_device(os_device_init_params init_params, os_device_t *device)
     int err = esp_to_os(e);
     if (err != OS_RET_OK)
     {
-        Serial.printf("Failed to couple SPI device to interface: %d\n", err);
+        os_printf("Failed to couple SPI device to interface: %d\n", err);
         return err;
     }
     return OS_RET_OK;

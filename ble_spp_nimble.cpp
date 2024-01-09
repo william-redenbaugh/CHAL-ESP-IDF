@@ -28,7 +28,7 @@
 // #define BLE_SPP_DEBUG
 
 #ifdef BLE_SPP_DEBUG
-#define ble_spp_printf(...) Serial.printf(__VA_ARGS__)
+#define ble_spp_printf(...) os_printf(__VA_ARGS__)
 #else
 #define ble_spp_printf(...) ((void)0)
 #endif
@@ -134,7 +134,7 @@ int hal_ble_serial_receive_block(uint8_t *data, size_t len)
     {
         return ret;
     }
-    // Serial.printf("\nhmm: %d\n", ret);
+    // os_printf("\nhmm: %d\n", ret);
     int n = dequeue_bytes_bytearray_fifo(spp_in_fifo, data, len);
 
     if (n != len)
@@ -155,7 +155,7 @@ int hal_ble_serial_receive_block_timeout(uint8_t *data, size_t len, uint32_t tim
         return ret;
     }
 
-    // Serial.printf("\nhmm: %d\n", ret);
+    // os_printf("\nhmm: %d\n", ret);
     int n = dequeue_bytes_bytearray_fifo(spp_in_fifo, data, len);
 
     if (n != len)
@@ -181,19 +181,19 @@ void ble_store_config_init(void);
 static void
 ble_spp_server_print_conn_desc(struct ble_gap_conn_desc *desc)
 {
-    Serial.printf("handle=%d our_ota_addr_type=%d our_ota_addr=",
+    os_printf("handle=%d our_ota_addr_type=%d our_ota_addr=",
                   (int)desc->conn_handle, (int)desc->our_ota_addr.type);
-    Serial.printf("%d\n", (int)desc->our_ota_addr.val);
-    Serial.printf(" our_id_addr_type=%d our_id_addr=",
+    os_printf("%d\n", (int)desc->our_ota_addr.val);
+    os_printf(" our_id_addr_type=%d our_id_addr=",
                   (int)desc->our_id_addr.type);
-    Serial.printf("%d\n", (int)desc->our_id_addr.val);
-    Serial.printf(" peer_ota_addr_type=%d peer_ota_addr=",
+    os_printf("%d\n", (int)desc->our_id_addr.val);
+    os_printf(" peer_ota_addr_type=%d peer_ota_addr=",
                   (int)desc->peer_ota_addr.type);
-    Serial.printf("%d\n", (int)desc->peer_ota_addr.val);
-    Serial.printf(" peer_id_addr_type=%d peer_id_addr=",
+    os_printf("%d\n", (int)desc->peer_ota_addr.val);
+    os_printf(" peer_id_addr_type=%d peer_id_addr=",
                   (int)desc->peer_id_addr.type);
-    Serial.printf("%d\n", (int)desc->peer_id_addr.val);
-    Serial.printf(" conn_itvl=%d conn_latency=%d supervision_timeout=%d "
+    os_printf("%d\n", (int)desc->peer_id_addr.val);
+    os_printf(" conn_itvl=%d conn_latency=%d supervision_timeout=%d "
                   "encrypted=%d authenticated=%d bonded=%d\n",
                   (int)desc->conn_itvl, desc->conn_latency,
                   (int)desc->supervision_timeout,
@@ -254,7 +254,7 @@ ble_spp_server_advertise(void)
     rc = ble_gap_adv_set_fields(&fields);
     if (rc != 0)
     {
-        Serial.printf("error setting advertisement data; rc=%d\n", rc);
+        os_printf("error setting advertisement data; rc=%d\n", rc);
         return;
     }
 
@@ -266,7 +266,7 @@ ble_spp_server_advertise(void)
                            &adv_params, ble_spp_server_gap_event, NULL);
     if (rc != 0)
     {
-        Serial.printf("error enabling advertisement; rc=%d\n", rc);
+        os_printf("error enabling advertisement; rc=%d\n", rc);
         return;
     }
 }
@@ -296,7 +296,7 @@ ble_spp_server_gap_event(struct ble_gap_event *event, void *arg)
     {
     case BLE_GAP_EVENT_CONNECT:
         /* A new connection was established or a connection attempt failed. */
-        Serial.printf("connection %s; status=%d ",
+        os_printf("connection %s; status=%d ",
                       event->connect.status == 0 ? "established" : "failed",
                       event->connect.status);
         if (event->connect.status == 0)
@@ -305,7 +305,7 @@ ble_spp_server_gap_event(struct ble_gap_event *event, void *arg)
             assert(rc == 0);
             ble_spp_server_print_conn_desc(&desc);
         }
-        Serial.printf("\n");
+        os_printf("\n");
         if (event->connect.status != 0 || CONFIG_BT_NIMBLE_MAX_CONNECTIONS > 1)
         {
             /* Connection failed or if multiple connection allowed; resume advertising. */
@@ -316,9 +316,9 @@ ble_spp_server_gap_event(struct ble_gap_event *event, void *arg)
         }
         return 0;
     case BLE_GAP_EVENT_DISCONNECT:
-        Serial.printf("disconnect; reason=%x ", event->disconnect.reason);
+        os_printf("disconnect; reason=%x ", event->disconnect.reason);
         ble_spp_server_print_conn_desc(&event->disconnect.conn);
-        Serial.printf("\n");
+        os_printf("\n");
         if(bluetooth_disc_cb){
             bluetooth_disc_cb(0);
         }
@@ -330,29 +330,29 @@ ble_spp_server_gap_event(struct ble_gap_event *event, void *arg)
 
     case BLE_GAP_EVENT_CONN_UPDATE:
         /* The central has updated the connection parameters. */
-        Serial.printf("connection updated; status=%d ",
+        os_printf("connection updated; status=%d ",
                       event->conn_update.status);
         rc = ble_gap_conn_find(event->conn_update.conn_handle, &desc);
         assert(rc == 0);
         ble_spp_server_print_conn_desc(&desc);
-        Serial.printf("\n");
+        os_printf("\n");
         return 0;
 
     case BLE_GAP_EVENT_ADV_COMPLETE:
-        Serial.printf("advertise complete; reason=%d",
+        os_printf("advertise complete; reason=%d",
                       event->adv_complete.reason);
         ble_spp_server_advertise();
         return 0;
 
     case BLE_GAP_EVENT_MTU:
-        Serial.printf("mtu update event; conn_handle=%d cid=%d mtu=%d\n",
+        os_printf("mtu update event; conn_handle=%d cid=%d mtu=%d\n",
                       event->mtu.conn_handle,
                       event->mtu.channel_id,
                       event->mtu.value);
         return 0;
 
     case BLE_GAP_EVENT_SUBSCRIBE:
-        Serial.printf("subscribe event; conn_handle=%d attr_handle=%d "
+        os_printf("subscribe event; conn_handle=%d attr_handle=%d "
                       "reason=%d prevn=%d curn=%d previ=%d curi=%d\n",
                       event->subscribe.conn_handle,
                       event->subscribe.attr_handle,
@@ -372,7 +372,7 @@ ble_spp_server_gap_event(struct ble_gap_event *event, void *arg)
 static void
 ble_spp_server_on_reset(int reason)
 {
-    Serial.printf("Resetting state; reason=%d\n", reason);
+    os_printf("Resetting state; reason=%d\n", reason);
 }
 
 static void
@@ -387,7 +387,7 @@ ble_spp_server_on_sync(void)
     rc = ble_hs_id_infer_auto(0, &own_addr_type);
     if (rc != 0)
     {
-        Serial.printf("error determining address type; rc=%d\n", rc);
+        os_printf("error determining address type; rc=%d\n", rc);
         return;
     }
 
@@ -395,16 +395,16 @@ ble_spp_server_on_sync(void)
     uint8_t addr_val[6] = {0};
     rc = ble_hs_id_copy_addr(own_addr_type, addr_val, NULL);
 
-    Serial.printf("Device Address: ");
-    Serial.printf("%d\n", (int)addr_val);
-    Serial.printf("\n");
+    os_printf("Device Address: ");
+    os_printf("%d\n", (int)addr_val);
+    os_printf("\n");
     /* Begin advertising. */
     ble_spp_server_advertise();
 }
 
 void ble_spp_server_host_task(void *param)
 {
-    Serial.printf("BLE Host Task Started\n");
+    os_printf("BLE Host Task Started\n");
 
     /* Set the default device name. */
     int rc = ble_svc_gap_device_name_set(adv_name);
@@ -428,7 +428,7 @@ static int ble_svc_gatt_recv_handler(uint16_t conn_handle, uint16_t attr_handle,
     switch (ctxt->op)
     {
     case BLE_GATT_ACCESS_OP_READ_CHR:
-        Serial.printf("Callback for read");
+        os_printf("Callback for read");
         break;
     case BLE_GATT_ACCESS_OP_WRITE_CHR:
     {
@@ -438,7 +438,7 @@ static int ble_svc_gatt_recv_handler(uint16_t conn_handle, uint16_t attr_handle,
             int rc = ble_hs_mbuf_to_flat(ctxt->om, copy_buff, len, &copied_len);
             if (rc == 0)
             {
-                // Serial.printf("Receved data %d Conn %d\n", len, conn_handle);
+                // os_printf("Receved data %d Conn %d\n", len, conn_handle);
                 //  Put the data into the bytearray to get consumed later!
                 enqueue_bytes_bytearray_fifo(spp_in_fifo, copy_buff, copied_len);
                 return 0;
@@ -450,7 +450,7 @@ static int ble_svc_gatt_recv_handler(uint16_t conn_handle, uint16_t attr_handle,
     }
     break;
     default:
-        Serial.printf("\nDefault Callback");
+        os_printf("\nDefault Callback");
         break;
     }
     return 0;
@@ -484,7 +484,7 @@ static inline void process_ble_data(uint8_t *arr){
     if (count > spp_mtu_size)
         count = spp_mtu_size;
 
-    // Serial.printf("Sending data out!");
+    // os_printf("Sending data out!");
     dequeue_bytes_bytearray_fifo(spp_out_fifo, arr, count);
     for (int i = 0; i <= CONFIG_BT_NIMBLE_MAX_CONNECTIONS; i++)
     {
@@ -586,7 +586,7 @@ hal_bt_serial_err_t hal_ble_serial_init(ble_connected_cb_t cb, ble_disconnected_
     esp_err_t ret = nimble_port_init();
     if (ret != ESP_OK)
     {
-        Serial.printf("Failed to init nimble %d \n", ret);
+        os_printf("Failed to init nimble %d \n", ret);
         return HAL_BT_SERIAL_ERROR;
     }
 
@@ -639,7 +639,7 @@ hal_bt_serial_err_t hal_ble_serial_init(ble_connected_cb_t cb, ble_disconnected_
                 0,
                 NULL);
 
-    Serial.printf("Nimble Initialized Successfully\n");
+    os_printf("Nimble Initialized Successfully\n");
     return HAL_BT_SERIAL_OK;
 }
 #endif

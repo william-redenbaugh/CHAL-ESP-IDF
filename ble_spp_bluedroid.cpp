@@ -25,7 +25,7 @@
 // #define BLE_SPP_DEBUG
 
 #ifdef BLE_SPP_DEBUG
-#define ble_spp_printf(...) Serial.printf(__VA_ARGS__)
+#define ble_spp_printf(...) os_printf(__VA_ARGS__)
 #else
 #define ble_spp_printf(...) ((void)0)
 #endif
@@ -224,7 +224,7 @@ static void bt_spp_recv_cb(uint8_t *data, size_t len)
     int ret = enqueue_bytes_bytearray_fifo(spp_in_fifo, data, len);
 
     if(ret != OS_RET_OK){
-        Serial.printf("\nFailed to enqueue data into the bytearray for the SPP rx driver %d\n", ret);
+        os_printf("\nFailed to enqueue data into the bytearray for the SPP rx driver %d\n", ret);
     }
 
     portYIELD();
@@ -242,7 +242,7 @@ int hal_ble_serial_receive_block(uint8_t *data, size_t len)
     if(ret != OS_RET_OK){
         return ret;
     }
-    //Serial.printf("\nhmm: %d\n", ret);
+    //os_printf("\nhmm: %d\n", ret);
     int n = dequeue_bytes_bytearray_fifo(spp_in_fifo, data, len);
     
     if(n != len){
@@ -260,7 +260,7 @@ int hal_ble_serial_receive_block_timeout(uint8_t *data, size_t len, uint32_t tim
         return ret;
     }
 
-    //Serial.printf("\nhmm: %d\n", ret);
+    //os_printf("\nhmm: %d\n", ret);
     int n = dequeue_bytes_bytearray_fifo(spp_in_fifo, data, len);
     
     if(n != len){
@@ -365,7 +365,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
     uint8_t res = 0xff;
 
     //ESP_LOGI(GATTS_TABLE_TAG, "event = %x", event);
-    //Serial.printf("event = %x\n", event);
+    //os_printf("event = %x\n", event);
     switch (event)
     {
     case ESP_GATTS_REG_EVT:
