@@ -38,6 +38,7 @@ int esp_to_os(esp_err_t err)
         return OS_RET_NO_FLASH_KEY;
 
     default:
+        os_printf("ESP Error: %d\n", err);
         return OS_RET_INT_ERR;
     }
 }
