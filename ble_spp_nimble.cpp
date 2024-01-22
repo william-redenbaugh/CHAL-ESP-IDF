@@ -54,11 +54,14 @@ static char adv_name[13] = "LightsLights";
 
 /* 16 Bit SPP Service UUID */
 #define BLE_SVC_SPP_UUID16 0xABF0
+
 /* 16 Bit SPP Service Characteristic UUID */
 #define BLE_SVC_SPP_CHR_UUID16 0xABF1
 
 /* 16 Bit BLE data notify*/
 #define BLE_SVC_NOTIFY_SPP_CHR_UUID16 0xABF2
+
+
 
 ble_uuid16_t svc_spp_uuid16[] = {
     {
@@ -545,7 +548,7 @@ static void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg)
     }
 }
 
-int gatt_svr_init(void)
+static int gatt_svr_init(void)
 {
     int rc = 0;
     ble_svc_gap_init();
