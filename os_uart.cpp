@@ -56,10 +56,20 @@ int os_uart_send(os_uart_t *uart, uint8_t *buf, size_t size)
  */
 int os_uart_recieve(os_uart_t *uart, uint8_t *buf, size_t size)
 {
-    return uart_read_bytes(uart->fd, buf, size, portMAX_DELAY);
+    size_t bytes_back = uart_read_bytes(uart->fd, buf, size, portMAX_DELAY);
+    if(bytes_back != size){
+        return OS_RET_INT_ERR;
+    }
+
+    return OS_RET_OK;
 }
 
 int os_uart_recieve_timeout(os_uart_t *uart, uint8_t *buf, size_t size, uint32_t timeout_ms)
 {
-    return uart_read_bytes(uart->fd, buf, size, timeout_ms / portTICK_PERIOD_MS);
+    size_t bytes_back = uart_read_bytes(uart->fd, buf, size, timeout_ms / portTICK_PERIOD_MS);
+    if(bytes_back != size){
+        return OS_RET_INT_ERR;
+    }
+
+    return OS_RET_OK;
 }
