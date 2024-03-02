@@ -24,18 +24,23 @@
 #include "lwip/sockets.h"
 #include "lwip/sys.h"
 #include <lwip/netdb.h>
+#include <ESP32DMASPIMaster.h>
+
+static const uint32_t BUFFER_SIZE = 4096;
 
 struct udp_fifo_t{
-
     uint16_t port;
     bool socket_open;   
     TaskHandle_t handle;
+    ESP32DMASPI::Master master;
+    uint8_t* tx_buff;
+    uint8_t* rx_buff;
 };
 
 static void udp_server_task(void *pvParameters)
 {
     udp_fifo_t *fifo = (udp_fifo_t*)pvParameters;
-    char rx_buffer[128];
+    uint8_t rx_buffer[4096];
     char addr_str[128];
     int addr_family = AF_INET;
     int ip_protocol = 0;
@@ -93,11 +98,7 @@ static void udp_server_task(void *pvParameters)
                 os_printf("Received %d bytes from %s:", len, addr_str);
                 os_printf("%s", rx_buffer);
 
-                int err = sendto(sock, rx_buffer, len, 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
-                if (err < 0) {
-                    os_printf("Error occurred during sending: errno %d", errno);
-                    break;
-                }
+                fifo->master.transfer(rx_buffer, len);
             }
         }
 
@@ -112,10 +113,19 @@ static void udp_server_task(void *pvParameters)
 
 
 udp_fifo_t *generate_udp_fifo(udp_fifo_init_t init_params){
-    udp_fifo_t *fifo = (udp_fifo_t*)malloc(sizeof(udp_fifo_t));
+    udp_fifo_t *fifo = new udp_fifo_t;
+    
+    fifo->tx_buff = fifo->master.allocDMABuffer(BUFFER_SIZE);
+    fifo->rx_buff = fifo->master.allocDMABuffer(BUFFER_SIZE);
+
+    fifo->master.setDataMode(SPI_MODE0);
+    fifo->master.setFrequency(4000000);
+    fifo->master.setMaxTransferSize(BUFFER_SIZE);
+    
+    fifo->master.begin(HSPI, init_params.clk, init_params.miso, init_params.mosi, init_params.cs);
 
     fifo->port = init_params.port;
-    xTaskCreate(udp_server_task, "udp_server", 4096, (void*)fifo, 5, &fifo->handle);
+    xTaskCreate(udp_server_task, "udp_server", 8192, (void*)fifo, 5, &fifo->handle);
 
     return fifo;    
 }
