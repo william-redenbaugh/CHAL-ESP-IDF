@@ -91,10 +91,10 @@ static void os_udp_server_thread(void *parameters)
         int_udp_server->sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
         if (int_udp_server->sock < 0)
         {
-            ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
+            //ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
             break;
         }
-        ESP_LOGI(TAG, "Socket created");
+        //ESP_LOGI(TAG, "Socket created");
 
         int enable = 1;
         lwip_setsockopt(int_udp_server->sock, IPPROTO_IP, IP_PKTINFO, &enable, sizeof(enable));
@@ -115,11 +115,6 @@ static void os_udp_server_thread(void *parameters)
         setsockopt(int_udp_server->sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof timeout);
 
         int err = bind(int_udp_server->sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
-        if (err < 0)
-        {
-            ESP_LOGE(TAG, "Socket unable to bind: errno %d", errno);
-        }
-        ESP_LOGI(TAG, "Socket bound, port %d", PORT);
 
         struct sockaddr_storage source_addr; // Large enough for both IPv4 or IPv6
         socklen_t socklen = sizeof(source_addr);

@@ -31,7 +31,8 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
         ap_cb(event, event_data->mac);
     }
 }
-int os_start_local_ap(char *ssid, char *password, int max_clients, uint16_t channel){
+
+int os_start_local_ap(char *ssid, char *password, int max_clients, uint16_t channel, ap_station_cb cb){
     int password_len = strlen(password);
     int ssid_len = strlen(ssid);
     wifi_config_t wifi_config = {
@@ -106,9 +107,6 @@ int os_start_local_ap(char *ssid, char *password, int max_clients, uint16_t chan
     if(ret != OS_RET_OK){
         return ret;
     }
-
-    ESP_LOGI(TAG, "wifi_init_softap finished. SSID:%s password:%s channel:%d",
-             EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS, EXAMPLE_ESP_WIFI_CHANNEL);
 
     return OS_RET_OK;
 }
