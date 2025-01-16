@@ -24,7 +24,6 @@
 #include "lwip/sockets.h"
 #include "lwip/sys.h"
 #include <lwip/netdb.h>
-#include <ESP32DMASPIMaster.h>
 
 static const uint32_t BUFFER_SIZE = 4096;
 
@@ -32,7 +31,7 @@ struct udp_fifo_t{
     uint16_t port;
     bool socket_open;   
     TaskHandle_t handle;
-    ESP32DMASPI::Master master;
+//    ESP32DMASPI::Master master;
     uint8_t* tx_buff;
     uint8_t* rx_buff;
 };
@@ -98,7 +97,7 @@ static void udp_server_task(void *pvParameters)
                 os_printf("Received %d bytes from %s:", len, addr_str);
                 os_printf("%s", rx_buffer);
 
-                fifo->master.transfer(rx_buffer, len);
+                //fifo->master.transfer(rx_buffer, len);
             }
         }
 
@@ -114,7 +113,8 @@ static void udp_server_task(void *pvParameters)
 
 udp_fifo_t *generate_udp_fifo(udp_fifo_init_t init_params){
     udp_fifo_t *fifo = new udp_fifo_t;
-    
+
+/*    
     fifo->tx_buff = fifo->master.allocDMABuffer(BUFFER_SIZE);
     fifo->rx_buff = fifo->master.allocDMABuffer(BUFFER_SIZE);
 
@@ -126,6 +126,6 @@ udp_fifo_t *generate_udp_fifo(udp_fifo_init_t init_params){
 
     fifo->port = init_params.port;
     xTaskCreate(udp_server_task, "udp_server", 8192, (void*)fifo, 5, &fifo->handle);
-
+*/
     return fifo;    
 }

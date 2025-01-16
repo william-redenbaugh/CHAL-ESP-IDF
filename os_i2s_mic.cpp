@@ -98,8 +98,8 @@ int i2s_host_init(os_i2s_host_t *host, int bus, os_i2s_pinmap_t pinmap, os_i2s_c
     {
         return esp_to_os(err);
     }
-    pinMode(host->chip_select_gpio, OUTPUT);
-    digitalWrite(host->chip_select_gpio, LOW);
+    //pinMode(host->chip_select_gpio, OUTPUT);
+    //digitalWrite(host->chip_select_gpio, LOW);
 
     return OS_RET_OK;
 }
